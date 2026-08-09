@@ -30,16 +30,16 @@ final class NetworkMonitor {
             let transport = Self.transport(for: path)
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                let routeChanged = pathSatisfied != (path.status == .satisfied)
-                    || pathTransport != transport
-                pathSatisfied = path.status == .satisfied
-                pathTransport = transport
+                let routeChanged = self.pathSatisfied != (path.status == .satisfied)
+                    || self.pathTransport != transport
+                self.pathSatisfied = path.status == .satisfied
+                self.pathTransport = transport
                 if routeChanged {
-                    probeResult = .pending
-                    lastProbeDate = .distantPast
+                    self.probeResult = .pending
+                    self.lastProbeDate = .distantPast
                 }
-                refreshMetadata()
-                runProbeIfNeeded(force: routeChanged)
+                self.refreshMetadata()
+                self.runProbeIfNeeded(force: routeChanged)
             }
         }
         pathMonitor.start(queue: pathQueue)
@@ -62,11 +62,11 @@ final class NetworkMonitor {
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                sampleThroughput()
-                interactiveTick += 1
-                if interactiveTick.isMultiple(of: MonitoringCadence.interactiveMetadataInterval) {
-                    refreshMetadata()
-                    runProbeIfNeeded()
+                self.sampleThroughput()
+                self.interactiveTick += 1
+                if self.interactiveTick.isMultiple(of: MonitoringCadence.interactiveMetadataInterval) {
+                    self.refreshMetadata()
+                    self.runProbeIfNeeded()
                 }
             }
         }
@@ -102,8 +102,8 @@ final class NetworkMonitor {
         ) { [weak self] _ in
             Task { @MainActor [weak self] in
                 guard let self else { return }
-                refreshMetadata()
-                runProbeIfNeeded()
+                self.refreshMetadata()
+                self.runProbeIfNeeded()
             }
         }
         timer.tolerance = MonitoringCadence.backgroundTimerTolerance
