@@ -1,0 +1,61 @@
+name: NetBar
+options:
+  bundleIdPrefix: com.erole
+  deploymentTarget:
+    macOS: "14.0"
+settings:
+  base:
+    SWIFT_VERSION: 6.0
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    DEVELOPMENT_TEAM: T26T3G8C7Q
+targets:
+  NetBar:
+    type: application
+    platform: macOS
+    sources:
+      - NetBar
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.erole.NetBar
+        PRODUCT_NAME: NetBar
+        MARKETING_VERSION: "0.1.0"
+        CURRENT_PROJECT_VERSION: "1"
+        GENERATE_INFOPLIST_FILE: YES
+        INFOPLIST_KEY_LSUIElement: YES
+        INFOPLIST_KEY_LSApplicationCategoryType: public.app-category.utilities
+        INFOPLIST_KEY_CFBundleDisplayName: NetBar
+        INFOPLIST_KEY_NSLocationWhenInUseUsageDescription: NetBar uses location permission only to read the name of the Wi-Fi network connected to this Mac.
+        ENABLE_HARDENED_RUNTIME: YES
+        CODE_SIGN_STYLE: Automatic
+    dependencies:
+      - sdk: CoreWLAN.framework
+      - sdk: CoreLocation.framework
+      - sdk: Network.framework
+      - sdk: SystemConfiguration.framework
+      - sdk: ServiceManagement.framework
+    scheme:
+      testTargets:
+        - NetBarTests
+        - NetBarUITests
+  NetBarTests:
+    type: bundle.unit-test
+    platform: macOS
+    sources:
+      - NetBarTests
+    dependencies:
+      - target: NetBar
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.erole.NetBarTests
+        GENERATE_INFOPLIST_FILE: YES
+  NetBarUITests:
+    type: bundle.ui-testing
+    platform: macOS
+    sources:
+      - NetBarUITests
+    dependencies:
+      - target: NetBar
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.erole.NetBarUITests
+        GENERATE_INFOPLIST_FILE: YES

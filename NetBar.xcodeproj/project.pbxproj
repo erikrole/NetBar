@@ -1,0 +1,572 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		1600010180B66278FA98B877 /* SystemNetworkReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97E527E267CA191F36677EEE /* SystemNetworkReader.swift */; };
+		2B6CFE707080DCFD93F1832F /* NetBarApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CF9E25E6FB350C0DFE64586 /* NetBarApp.swift */; };
+		31C49453E923438DB5A090AE /* NetBarTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81388D2422E5E9D883E083F9 /* NetBarTests.swift */; };
+		32A570E9BD6BF51CEB7968A6 /* NetBarUITests.swift in Sources */ = {isa = PBXBuildFile; fileRef = E9B33B7A19DF6F98D94A6D99 /* NetBarUITests.swift */; };
+		3BA97FC8A99C771DCE6A6CD0 /* ServiceManagement.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B2B525310BBD9F61767411D9 /* ServiceManagement.framework */; };
+		55203920797238531D137725 /* Models.swift in Sources */ = {isa = PBXBuildFile; fileRef = DB7B9C43816DE86C712B3A1D /* Models.swift */; };
+		5D3184552DE8D12AEFAD7375 /* Network.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = B28F7968E86B26ED8DE68809 /* Network.framework */; };
+		850A5C13E0124089975FA482 /* LaunchAtLoginController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 88E473B22925A4F4E07E971E /* LaunchAtLoginController.swift */; };
+		91DF6DA6DFA57D4B28EE2A71 /* LocationPermissionController.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A9599B1E811B52F85C2D79B /* LocationPermissionController.swift */; };
+		97B90019D55A577160C24A43 /* NetworkMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 913B0CB5EB972A913C298FCF /* NetworkMonitor.swift */; };
+		A13610671839DC3DBA6D38C4 /* InternetProbe.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3343BEC0407D34ADB079D841 /* InternetProbe.swift */; };
+		B069BE0FBC1DF3E36ED008EA /* CoreWLAN.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 64BDE2A3ED87BF0C410F62DF /* CoreWLAN.framework */; };
+		BD3205F0F4F0AF6CED25539F /* NetBarView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F70EF9AF3F48843626D8AD65 /* NetBarView.swift */; };
+		CEF78731BEEA8ADDD29D6923 /* SystemConfiguration.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 075DDAA1897CD93496E7181F /* SystemConfiguration.framework */; };
+		D299B83760377456582A9A67 /* CoreLocation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 93D0A4CE4561C9B696D05221 /* CoreLocation.framework */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		59C56157514C8D2FAF44BF34 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = ED3D4AF8FCE862B6CE6B5DDB /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E0DFF0D8F5F960B2B7F92F36;
+			remoteInfo = NetBar;
+		};
+		F8CA96577615A475D5609004 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = ED3D4AF8FCE862B6CE6B5DDB /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = E0DFF0D8F5F960B2B7F92F36;
+			remoteInfo = NetBar;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		075DDAA1897CD93496E7181F /* SystemConfiguration.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SystemConfiguration.framework; path = System/Library/Frameworks/SystemConfiguration.framework; sourceTree = SDKROOT; };
+		0922B72093ABBDFF9F09A8CA /* NetBar.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NetBar.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		1CF9E25E6FB350C0DFE64586 /* NetBarApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetBarApp.swift; sourceTree = "<group>"; };
+		3343BEC0407D34ADB079D841 /* InternetProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InternetProbe.swift; sourceTree = "<group>"; };
+		5A9599B1E811B52F85C2D79B /* LocationPermissionController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationPermissionController.swift; sourceTree = "<group>"; };
+		64BDE2A3ED87BF0C410F62DF /* CoreWLAN.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreWLAN.framework; path = System/Library/Frameworks/CoreWLAN.framework; sourceTree = SDKROOT; };
+		81388D2422E5E9D883E083F9 /* NetBarTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetBarTests.swift; sourceTree = "<group>"; };
+		88E473B22925A4F4E07E971E /* LaunchAtLoginController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LaunchAtLoginController.swift; sourceTree = "<group>"; };
+		913B0CB5EB972A913C298FCF /* NetworkMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetworkMonitor.swift; sourceTree = "<group>"; };
+		93D0A4CE4561C9B696D05221 /* CoreLocation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreLocation.framework; path = System/Library/Frameworks/CoreLocation.framework; sourceTree = SDKROOT; };
+		97E527E267CA191F36677EEE /* SystemNetworkReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SystemNetworkReader.swift; sourceTree = "<group>"; };
+		A0189F7A0C283E79C778BB5F /* NetBarUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NetBarUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		B28F7968E86B26ED8DE68809 /* Network.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Network.framework; path = System/Library/Frameworks/Network.framework; sourceTree = SDKROOT; };
+		B2B525310BBD9F61767411D9 /* ServiceManagement.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = ServiceManagement.framework; path = System/Library/Frameworks/ServiceManagement.framework; sourceTree = SDKROOT; };
+		DB7B9C43816DE86C712B3A1D /* Models.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Models.swift; sourceTree = "<group>"; };
+		E9B33B7A19DF6F98D94A6D99 /* NetBarUITests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetBarUITests.swift; sourceTree = "<group>"; };
+		F611D9AAF330DC6F1E3D70E9 /* NetBarTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = NetBarTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		F70EF9AF3F48843626D8AD65 /* NetBarView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetBarView.swift; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		A478763689DA5D81CA326ACE /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				B069BE0FBC1DF3E36ED008EA /* CoreWLAN.framework in Frameworks */,
+				D299B83760377456582A9A67 /* CoreLocation.framework in Frameworks */,
+				5D3184552DE8D12AEFAD7375 /* Network.framework in Frameworks */,
+				CEF78731BEEA8ADDD29D6923 /* SystemConfiguration.framework in Frameworks */,
+				3BA97FC8A99C771DCE6A6CD0 /* ServiceManagement.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		163636F9DE6DEBC438B53BF3 /* NetBar */ = {
+			isa = PBXGroup;
+			children = (
+				3343BEC0407D34ADB079D841 /* InternetProbe.swift */,
+				88E473B22925A4F4E07E971E /* LaunchAtLoginController.swift */,
+				5A9599B1E811B52F85C2D79B /* LocationPermissionController.swift */,
+				DB7B9C43816DE86C712B3A1D /* Models.swift */,
+				1CF9E25E6FB350C0DFE64586 /* NetBarApp.swift */,
+				F70EF9AF3F48843626D8AD65 /* NetBarView.swift */,
+				913B0CB5EB972A913C298FCF /* NetworkMonitor.swift */,
+				97E527E267CA191F36677EEE /* SystemNetworkReader.swift */,
+			);
+			path = NetBar;
+			sourceTree = "<group>";
+		};
+		412D6A9708B0890D24FD622D = {
+			isa = PBXGroup;
+			children = (
+				163636F9DE6DEBC438B53BF3 /* NetBar */,
+				5B8AC854F2A5AAE25B2979A7 /* NetBarTests */,
+				B73288F71ACD28BBD474F44E /* NetBarUITests */,
+				DB3245888C0CAF7748C13865 /* Frameworks */,
+				5744CD38A420386968BBA0BD /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		5744CD38A420386968BBA0BD /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				0922B72093ABBDFF9F09A8CA /* NetBar.app */,
+				F611D9AAF330DC6F1E3D70E9 /* NetBarTests.xctest */,
+				A0189F7A0C283E79C778BB5F /* NetBarUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		5B8AC854F2A5AAE25B2979A7 /* NetBarTests */ = {
+			isa = PBXGroup;
+			children = (
+				81388D2422E5E9D883E083F9 /* NetBarTests.swift */,
+			);
+			path = NetBarTests;
+			sourceTree = "<group>";
+		};
+		B73288F71ACD28BBD474F44E /* NetBarUITests */ = {
+			isa = PBXGroup;
+			children = (
+				E9B33B7A19DF6F98D94A6D99 /* NetBarUITests.swift */,
+			);
+			path = NetBarUITests;
+			sourceTree = "<group>";
+		};
+		DB3245888C0CAF7748C13865 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				93D0A4CE4561C9B696D05221 /* CoreLocation.framework */,
+				64BDE2A3ED87BF0C410F62DF /* CoreWLAN.framework */,
+				B28F7968E86B26ED8DE68809 /* Network.framework */,
+				B2B525310BBD9F61767411D9 /* ServiceManagement.framework */,
+				075DDAA1897CD93496E7181F /* SystemConfiguration.framework */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		1F45A79411189B087AD77265 /* NetBarUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 1240E720F06E3C467DDCFC05 /* Build configuration list for PBXNativeTarget "NetBarUITests" */;
+			buildPhases = (
+				8C52F31729884502EE0CF40E /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				DA282520D2A3EC20839E188B /* PBXTargetDependency */,
+			);
+			name = NetBarUITests;
+			packageProductDependencies = (
+			);
+			productName = NetBarUITests;
+			productReference = A0189F7A0C283E79C778BB5F /* NetBarUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+		A160C860483301D2A9D97872 /* NetBarTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = C2A75FE566D350A32743A90C /* Build configuration list for PBXNativeTarget "NetBarTests" */;
+			buildPhases = (
+				50A4BC326C1DA862A908C0C3 /* Sources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				8CF2B9E8A4D001BBD96A24C3 /* PBXTargetDependency */,
+			);
+			name = NetBarTests;
+			packageProductDependencies = (
+			);
+			productName = NetBarTests;
+			productReference = F611D9AAF330DC6F1E3D70E9 /* NetBarTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		E0DFF0D8F5F960B2B7F92F36 /* NetBar */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = EADDF7918B63E0917DD3EACF /* Build configuration list for PBXNativeTarget "NetBar" */;
+			buildPhases = (
+				D431BCBF53700DB3F94347E5 /* Sources */,
+				A478763689DA5D81CA326ACE /* Frameworks */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = NetBar;
+			packageProductDependencies = (
+			);
+			productName = NetBar;
+			productReference = 0922B72093ABBDFF9F09A8CA /* NetBar.app */;
+			productType = "com.apple.product-type.application";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		ED3D4AF8FCE862B6CE6B5DDB /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = YES;
+				LastUpgradeCheck = 1430;
+				TargetAttributes = {
+					1F45A79411189B087AD77265 = {
+						DevelopmentTeam = T26T3G8C7Q;
+						TestTargetID = E0DFF0D8F5F960B2B7F92F36;
+					};
+					A160C860483301D2A9D97872 = {
+						DevelopmentTeam = T26T3G8C7Q;
+					};
+					E0DFF0D8F5F960B2B7F92F36 = {
+						DevelopmentTeam = T26T3G8C7Q;
+						ProvisioningStyle = Automatic;
+					};
+				};
+			};
+			buildConfigurationList = 39E1BF1715D1A1B402B7EAC8 /* Build configuration list for PBXProject "NetBar" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				Base,
+				en,
+			);
+			mainGroup = 412D6A9708B0890D24FD622D;
+			minimizedProjectReferenceProxies = 1;
+			preferredProjectObjectVersion = 77;
+			productRefGroup = 5744CD38A420386968BBA0BD /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				E0DFF0D8F5F960B2B7F92F36 /* NetBar */,
+				A160C860483301D2A9D97872 /* NetBarTests */,
+				1F45A79411189B087AD77265 /* NetBarUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXSourcesBuildPhase section */
+		50A4BC326C1DA862A908C0C3 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				31C49453E923438DB5A090AE /* NetBarTests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		8C52F31729884502EE0CF40E /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				32A570E9BD6BF51CEB7968A6 /* NetBarUITests.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		D431BCBF53700DB3F94347E5 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A13610671839DC3DBA6D38C4 /* InternetProbe.swift in Sources */,
+				850A5C13E0124089975FA482 /* LaunchAtLoginController.swift in Sources */,
+				91DF6DA6DFA57D4B28EE2A71 /* LocationPermissionController.swift in Sources */,
+				55203920797238531D137725 /* Models.swift in Sources */,
+				2B6CFE707080DCFD93F1832F /* NetBarApp.swift in Sources */,
+				BD3205F0F4F0AF6CED25539F /* NetBarView.swift in Sources */,
+				97B90019D55A577160C24A43 /* NetworkMonitor.swift in Sources */,
+				1600010180B66278FA98B877 /* SystemNetworkReader.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		8CF2B9E8A4D001BBD96A24C3 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E0DFF0D8F5F960B2B7F92F36 /* NetBar */;
+			targetProxy = F8CA96577615A475D5609004 /* PBXContainerItemProxy */;
+		};
+		DA282520D2A3EC20839E188B /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = E0DFF0D8F5F960B2B7F92F36 /* NetBar */;
+			targetProxy = 59C56157514C8D2FAF44BF34 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		77F3C08B6C62F85EA332A811 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				DEVELOPMENT_TEAM = T26T3G8C7Q;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"DEBUG=1",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Debug;
+		};
+		9057DF6B0FB049913A1A6F95 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = NetBar;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "NetBar uses location permission only to read the name of the Wi-Fi network connected to this Mac.";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.erole.NetBar;
+				PRODUCT_NAME = NetBar;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		9898CCD8921F192AC1262A7D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				DEVELOPMENT_TEAM = T26T3G8C7Q;
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 14.0;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+				SWIFT_OPTIMIZATION_LEVEL = "-O";
+				SWIFT_VERSION = 6.0;
+			};
+			name = Release;
+		};
+		9E1A2FB094D30D9A360E5654 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.erole.NetBarTests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/NetBar.app/Contents/MacOS/NetBar";
+			};
+			name = Debug;
+		};
+		B5961C6698452A29425AE43E /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.erole.NetBarUITests;
+				SDKROOT = macosx;
+				TEST_TARGET_NAME = NetBar;
+			};
+			name = Release;
+		};
+		E703E8B6585A458316CA62CF /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+					"@loader_path/../Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.erole.NetBarTests;
+				SDKROOT = macosx;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/NetBar.app/Contents/MacOS/NetBar";
+			};
+			name = Release;
+		};
+		F001BDC740957864D2F2941B /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_HARDENED_RUNTIME = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_KEY_CFBundleDisplayName = NetBar;
+				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
+				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "NetBar uses location permission only to read the name of the Wi-Fi network connected to this Mac.";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 0.1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.erole.NetBar;
+				PRODUCT_NAME = NetBar;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		F16F3C1D01C57F7B867E5C90 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				COMBINE_HIDPI_IMAGES = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.erole.NetBarUITests;
+				SDKROOT = macosx;
+				TEST_TARGET_NAME = NetBar;
+			};
+			name = Debug;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		1240E720F06E3C467DDCFC05 /* Build configuration list for PBXNativeTarget "NetBarUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				F16F3C1D01C57F7B867E5C90 /* Debug */,
+				B5961C6698452A29425AE43E /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		39E1BF1715D1A1B402B7EAC8 /* Build configuration list for PBXProject "NetBar" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				77F3C08B6C62F85EA332A811 /* Debug */,
+				9898CCD8921F192AC1262A7D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		C2A75FE566D350A32743A90C /* Build configuration list for PBXNativeTarget "NetBarTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9E1A2FB094D30D9A360E5654 /* Debug */,
+				E703E8B6585A458316CA62CF /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+		EADDF7918B63E0917DD3EACF /* Build configuration list for PBXNativeTarget "NetBar" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				9057DF6B0FB049913A1A6F95 /* Debug */,
+				F001BDC740957864D2F2941B /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Debug;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = ED3D4AF8FCE862B6CE6B5DDB /* Project object */;
+}
