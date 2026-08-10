@@ -23,11 +23,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         configureStatusItem()
         observeMonitor()
         locationPermission.requestAutomaticallyIfNeeded()
-        if ProcessInfo.processInfo.environment["NETBAR_OPEN_POPOVER_FOR_UI_TESTS"] == "1" {
-            DispatchQueue.main.async { [weak self] in
-                self?.showPopover()
-            }
-        }
     }
 
     private func configurePopover() {
@@ -45,15 +40,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     private func configureStatusItem() {
-        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.squareLength)
+        let item = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength)
         guard let button = item.button else { return }
         button.target = self
         button.action = #selector(togglePopover(_:))
-        button.imagePosition = .imageOnly
+        button.imagePosition = .imageLeading
+        button.imageScaling = .scaleNone
+        button.imageHugsTitle = true
         button.toolTip = "NetBar"
         button.identifier = NSUserInterfaceItemIdentifier("NetBarStatusItem")
         button.setAccessibilityLabel("NetBar network status")
         item.autosaveName = "NetBar.StatusItem"
+        item.isVisible = true
         statusItem = item
         updateStatusItem()
     }
@@ -75,46 +73,34 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private func updateStatusItem() {
         guard let button = statusItem?.button else { return }
         let reading = monitor.reading
-        button.title = ""
-        button.image = statusImage(for: reading)
+        button.image = statusSymbol(for: reading.transport)
+        button.attributedTitle = statusDotTitle(for: reading.state)
         let description = "\(reading.friendlyTitle): \(reading.state.accessibilityDescription)"
         button.toolTip = description
+        button.setAccessibilityTitle(description)
         button.setAccessibilityLabel(description)
     }
 
-    private func statusImage(for reading: NetworkReading) -> NSImage {
-        let image = NSImage(size: NSSize(width: 18, height: 18), flipped: false) { rect in
-            let circleRect = NSRect(x: 1, y: 1, width: 16, height: 16)
-            let circle = NSBezierPath(ovalIn: circleRect)
-            reading.state.menuBarColor.setFill()
-            circle.fill()
-            NSColor.black.withAlphaComponent(0.18).setStroke()
-            circle.lineWidth = 0.75
-            circle.stroke()
-
-            guard reading.transport != .none,
-                  let symbol = NSImage(
-                    systemSymbolName: reading.transport.statusSymbolName,
-                    accessibilityDescription: nil
-                  )?
-                    .withSymbolConfiguration(.init(pointSize: 9.25, weight: .bold))?
-                    .withSymbolConfiguration(.init(paletteColors: [reading.state.menuBarGlyphColor]))
-            else { return true }
-
-            let symbolSize = symbol.size
-            let scale = min(10.5 / symbolSize.width, 9.5 / symbolSize.height)
-            let drawSize = NSSize(width: symbolSize.width * scale, height: symbolSize.height * scale)
-            let drawRect = NSRect(
-                x: rect.midX - drawSize.width / 2,
-                y: rect.midY - drawSize.height / 2 - 0.25,
-                width: drawSize.width,
-                height: drawSize.height
-            )
-            symbol.draw(in: drawRect)
-            return true
+    private func statusSymbol(for transport: TransportKind) -> NSImage? {
+        guard let image = NSImage(
+            systemSymbolName: transport.statusSymbolName,
+            accessibilityDescription: nil
+        )?.withSymbolConfiguration(.init(pointSize: 14, weight: .medium)) else {
+            return nil
         }
-        image.isTemplate = false
+        image.isTemplate = true
         return image
+    }
+
+    private func statusDotTitle(for state: InternetState) -> NSAttributedString {
+        NSAttributedString(
+            string: "●",
+            attributes: [
+                .font: NSFont.systemFont(ofSize: 7, weight: .semibold),
+                .foregroundColor: state.menuBarColor,
+                .baselineOffset: 1.5,
+            ]
+        )
     }
 
     @objc private func togglePopover(_ sender: Any?) {
@@ -145,9 +131,9 @@ private extension TransportKind {
     var statusSymbolName: String {
         switch self {
         case .wifi: "wifi"
-        case .ethernet: "cable.connector.horizontal"
+        case .ethernet: "cable.connector"
         case .other: "network"
-        case .none: "circle.fill"
+        case .none: "network.slash"
         }
     }
 }
@@ -158,15 +144,6 @@ private extension InternetState {
         case .online: .systemGreen
         case .checking, .degraded: .systemYellow
         case .offline: .systemRed
-        }
-    }
-
-    var menuBarGlyphColor: NSColor {
-        switch self {
-        case .online, .checking, .degraded:
-            NSColor(calibratedWhite: 0.06, alpha: 1)
-        case .offline:
-            .white
         }
     }
 }

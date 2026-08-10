@@ -1,4 +1,5 @@
 import Darwin
+import Foundation
 import XCTest
 @testable import NetBar
 
@@ -16,6 +17,45 @@ final class NetBarTests: XCTestCase {
         XCTAssertEqual(InternetState.resolve(pathSatisfied: true, probe: .pending), .checking)
         XCTAssertEqual(InternetState.resolve(pathSatisfied: true, probe: .failed), .degraded)
         XCTAssertEqual(InternetState.resolve(pathSatisfied: true, probe: .succeeded), .online)
+    }
+
+    func testInternetProbeRequiresAppleSuccessResponse() throws {
+        let url = try XCTUnwrap(URL(string: "https://captive.apple.com/hotspot-detect.html"))
+        let response = try XCTUnwrap(HTTPURLResponse(
+            url: url,
+            statusCode: 200,
+            httpVersion: nil,
+            headerFields: nil
+        ))
+        let data = Data("<HTML><BODY>Success</BODY></HTML>".utf8)
+
+        XCTAssertTrue(InternetProbeValidator.isSuccessful(data: data, response: response))
+    }
+
+    func testInternetProbeRejectsCaptivePortalAndRedirectedResponses() throws {
+        let appleURL = try XCTUnwrap(URL(string: "https://captive.apple.com/hotspot-detect.html"))
+        let portalURL = try XCTUnwrap(URL(string: "https://login.example.com/portal"))
+        let appleResponse = try XCTUnwrap(HTTPURLResponse(
+            url: appleURL,
+            statusCode: 200,
+            httpVersion: nil,
+            headerFields: nil
+        ))
+        let portalResponse = try XCTUnwrap(HTTPURLResponse(
+            url: portalURL,
+            statusCode: 200,
+            httpVersion: nil,
+            headerFields: nil
+        ))
+
+        XCTAssertFalse(InternetProbeValidator.isSuccessful(
+            data: Data("<HTML><BODY>Sign in</BODY></HTML>".utf8),
+            response: appleResponse
+        ))
+        XCTAssertFalse(InternetProbeValidator.isSuccessful(
+            data: Data("<HTML><BODY>Success</BODY></HTML>".utf8),
+            response: portalResponse
+        ))
     }
 
     func testThroughputUsesCounterDelta() {
@@ -99,6 +139,38 @@ final class NetBarTests: XCTestCase {
             SystemNetworkReader.ethernetLinkSpeed(forMediaWord: IFM_ETHER | IFM_10G_T),
             10_000_000_000
         )
+    }
+
+    func testActiveIPv4TunnelRequiresAllRuntimeFlags() {
+        let activeFlags = UInt32(IFF_UP | IFF_RUNNING | IFF_POINTOPOINT)
+
+        XCTAssertTrue(SystemNetworkReader.isActiveIPv4Tunnel(
+            flags: activeFlags,
+            addressFamily: UInt8(AF_INET)
+        ))
+        XCTAssertFalse(SystemNetworkReader.isActiveIPv4Tunnel(
+            flags: UInt32(IFF_UP | IFF_POINTOPOINT),
+            addressFamily: UInt8(AF_INET)
+        ))
+        XCTAssertFalse(SystemNetworkReader.isActiveIPv4Tunnel(
+            flags: activeFlags,
+            addressFamily: UInt8(AF_INET6)
+        ))
+    }
+
+    func testGlobalProtectServiceRequiresExpectedExecutablePath() {
+        XCTAssertTrue(SystemNetworkReader.isGlobalProtectService(
+            executableName: "PanGPS",
+            executablePath: "/Applications/GlobalProtect.app/Contents/Resources/PanGPS"
+        ))
+        XCTAssertFalse(SystemNetworkReader.isGlobalProtectService(
+            executableName: "PanGPS",
+            executablePath: "/tmp/PanGPS"
+        ))
+        XCTAssertFalse(SystemNetworkReader.isGlobalProtectService(
+            executableName: "OtherVPN",
+            executablePath: "/Applications/GlobalProtect.app/Contents/Resources/PanGPS"
+        ))
     }
 
     func testInactiveEthernetExcludesThePrimaryRoute() {

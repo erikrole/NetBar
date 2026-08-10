@@ -5,6 +5,7 @@ struct NetBarView: View {
     let monitor: NetworkMonitor
     let launchAtLogin: LaunchAtLoginController
     let locationPermission: LocationPermissionController
+    @State private var globalProtectLaunchError: String?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -78,11 +79,28 @@ struct NetBarView: View {
 
     private var vpn: some View {
         InfoSection(title: "GlobalProtect", symbol: "lock.shield") {
-            InfoRow(
-                label: "VPN",
-                value: monitor.reading.globalProtectConnected ? "Connected" : "Disconnected",
-                valueColor: monitor.reading.globalProtectConnected ? .green : .secondary
-            )
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Text("VPN")
+                    .foregroundStyle(.secondary)
+                Spacer(minLength: 12)
+                Text(monitor.reading.globalProtectConnected ? "Connected" : "Disconnected")
+                    .foregroundStyle(monitor.reading.globalProtectConnected ? .green : .secondary)
+                Button("Open GlobalProtect…") {
+                    openGlobalProtect()
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .help("Open GlobalProtect with your saved portal ready")
+                .accessibilityIdentifier("GlobalProtectConnectionButton")
+            }
+            .font(.callout)
+
+            if let globalProtectLaunchError {
+                Label(globalProtectLaunchError, systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .accessibilityIdentifier("GlobalProtectLaunchError")
+            }
         }
     }
 
@@ -134,36 +152,54 @@ struct NetBarView: View {
     }
 
     private var footer: some View {
-        HStack(spacing: 12) {
-            Toggle("Launch at login", isOn: Binding(
-                get: { launchAtLogin.isEnabled },
-                set: { launchAtLogin.setEnabled($0) }
-            ))
-            .toggleStyle(.switch)
-            .controlSize(.small)
-            .accessibilityIdentifier("LaunchAtLoginToggle")
+        VStack(alignment: .leading, spacing: 7) {
+            HStack(spacing: 12) {
+                Toggle("Launch at login", isOn: Binding(
+                    get: { launchAtLogin.isEnabled },
+                    set: { launchAtLogin.setEnabled($0) }
+                ))
+                .toggleStyle(.switch)
+                .controlSize(.small)
+                .accessibilityIdentifier("LaunchAtLoginToggle")
 
-            Spacer()
+                Spacer()
 
-            Menu {
-                Button("Open Network Settings") {
-                    openNetworkSettings()
+                Menu {
+                    Button("Open Network Settings") {
+                        openNetworkSettings()
+                    }
+                    if launchAtLogin.requiresApproval {
+                        Button("Open Login Item Settings") {
+                            launchAtLogin.openSettings()
+                        }
+                    }
+                    Divider()
+                    Button("Quit NetBar") {
+                        NSApplication.shared.terminate(nil)
+                    }
+                } label: {
+                    Image(systemName: "ellipsis.circle")
                 }
-                if launchAtLogin.requiresApproval {
-                    Button("Open Login Item Settings") {
+                .menuStyle(.borderlessButton)
+                .fixedSize()
+            }
+
+            if let errorMessage = launchAtLogin.errorMessage {
+                Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
+                    .foregroundStyle(.red)
+                    .accessibilityIdentifier("LaunchAtLoginError")
+            } else if launchAtLogin.requiresApproval {
+                HStack(spacing: 4) {
+                    Text("Login item approval required.")
+                    Button("Open Settings") {
                         launchAtLogin.openSettings()
                     }
+                    .buttonStyle(.link)
                 }
-                Divider()
-                Button("Quit NetBar") {
-                    NSApplication.shared.terminate(nil)
-                }
-            } label: {
-                Image(systemName: "ellipsis.circle")
             }
-            .menuStyle(.borderlessButton)
-            .fixedSize()
+
         }
+        .font(.caption)
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
     }
@@ -178,6 +214,29 @@ struct NetBarView: View {
     private func openNetworkSettings() {
         guard let url = URL(string: "x-apple.systempreferences:com.apple.Network-Settings.extension") else { return }
         NSWorkspace.shared.open(url)
+    }
+
+    private func openGlobalProtect() {
+        guard let url = NSWorkspace.shared.urlForApplication(
+            withBundleIdentifier: "com.paloaltonetworks.GlobalProtect.client"
+        ) else {
+            globalProtectLaunchError = "GlobalProtect is not installed."
+            return
+        }
+
+        globalProtectLaunchError = nil
+        Task { @MainActor in
+            let configuration = NSWorkspace.OpenConfiguration()
+            configuration.activates = true
+            do {
+                _ = try await NSWorkspace.shared.openApplication(
+                    at: url,
+                    configuration: configuration
+                )
+            } catch {
+                globalProtectLaunchError = error.localizedDescription
+            }
+        }
     }
 }
 

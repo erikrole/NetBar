@@ -10,7 +10,7 @@ NetBar is a native macOS menu bar utility for answering the network questions th
 - Wi-Fi SSID, signal, noise, SNR, transmit rate, and channel
 - active router and local IP address without exposing BSD interface names
 
-The menu bar shows a fixed-width colored badge with a Wi-Fi, Ethernet, or generic network glyph for the route macOS is actually using. Green means the internet probe succeeded, yellow means a local route exists but the internet probe is not responding, and red means macOS has no usable network path. Live rates stay inside the popover, where separate download and upload graphs show the last 60 one-second samples and their recent peaks.
+The menu bar shows a native Wi-Fi, Ethernet, or generic network symbol for the route macOS is actually using, with a compact health dot beside it. Green means the internet probe succeeded, yellow means a local route exists but the internet probe is not responding, and red means macOS has no usable network path. Live rates stay inside the popover, where separate download and upload graphs show the last 60 one-second samples and their recent peaks.
 
 ## Build and run
 

@@ -9,10 +9,34 @@ struct SystemNetworkReader: Sendable {
               let value = SCDynamicStoreCopyValue(store, "State:/Network/Global/IPv4" as CFString)
                 as? [String: Any]
         else { return ActiveRoute() }
-        return ActiveRoute(
+        let primary = ActiveRoute(
             interfaceName: value["PrimaryInterface"] as? String,
             routerAddress: value["Router"] as? String
         )
+        guard primary.interfaceName?.hasPrefix("utun") == true else { return primary }
+        return activePhysicalRoute(in: store) ?? primary
+    }
+
+    private func activePhysicalRoute(in store: SCDynamicStore) -> ActiveRoute? {
+        guard let setup = SCDynamicStoreCopyValue(store, "Setup:/Network/Global/IPv4" as CFString)
+            as? [String: Any],
+              let serviceOrder = setup["ServiceOrder"] as? [String]
+        else { return nil }
+
+        for serviceID in serviceOrder {
+            let key = "State:/Network/Service/\(serviceID)/IPv4" as CFString
+            guard let service = SCDynamicStoreCopyValue(store, key) as? [String: Any],
+                  let interfaceName = service["InterfaceName"] as? String,
+                  !interfaceName.hasPrefix("utun"),
+                  localIPv4Address(for: interfaceName) != nil
+            else { continue }
+
+            return ActiveRoute(
+                interfaceName: interfaceName,
+                routerAddress: service["Router"] as? String
+            )
+        }
+        return nil
     }
 
     func displayName(forBSDName name: String) -> String? {
@@ -143,7 +167,7 @@ struct SystemNetworkReader: Sendable {
     }
 
     func globalProtectTunnel() -> String? {
-        guard processIsRunning(named: "PanGPS") else { return nil }
+        guard globalProtectServiceIsRunning() else { return nil }
 
         var pointer: UnsafeMutablePointer<ifaddrs>?
         guard getifaddrs(&pointer) == 0, let first = pointer else { return nil }
@@ -152,16 +176,23 @@ struct SystemNetworkReader: Sendable {
         for item in sequence(first: first, next: { $0.pointee.ifa_next }) {
             let name = String(cString: item.pointee.ifa_name)
             guard name.hasPrefix("utun"),
-                  item.pointee.ifa_flags & UInt32(IFF_UP) != 0,
                   let address = item.pointee.ifa_addr,
-                  address.pointee.sa_family == UInt8(AF_INET)
+                  Self.isActiveIPv4Tunnel(
+                      flags: item.pointee.ifa_flags,
+                      addressFamily: address.pointee.sa_family
+                  )
             else { continue }
             return name
         }
         return nil
     }
 
-    private func processIsRunning(named executableName: String) -> Bool {
+    static func isActiveIPv4Tunnel(flags: UInt32, addressFamily: UInt8) -> Bool {
+        let requiredFlags = UInt32(IFF_UP | IFF_RUNNING | IFF_POINTOPOINT)
+        return flags & requiredFlags == requiredFlags && addressFamily == UInt8(AF_INET)
+    }
+
+    private func globalProtectServiceIsRunning() -> Bool {
         var mib = [CTL_KERN, KERN_PROC, KERN_PROC_ALL, 0]
         var length = 0
         guard sysctl(&mib, 4, nil, &length, nil, 0) == 0 else { return false }
@@ -169,12 +200,27 @@ struct SystemNetworkReader: Sendable {
         guard sysctl(&mib, 4, &processes, &length, nil, 0) == 0 else { return false }
         let count = length / MemoryLayout<kinfo_proc>.stride
         return processes.prefix(count).contains { process in
-            withUnsafePointer(to: process.kp_proc.p_comm) { pointer in
+            let executableName = withUnsafePointer(to: process.kp_proc.p_comm) { pointer in
                 pointer.withMemoryRebound(to: CChar.self, capacity: Int(MAXCOMLEN) + 1) {
-                    String(cString: $0) == executableName
+                    String(cString: $0)
                 }
             }
+            guard executableName == "PanGPS" else { return false }
+
+            var pathBuffer = [CChar](repeating: 0, count: Int(MAXPATHLEN))
+            guard proc_pidpath(process.kp_proc.p_pid, &pathBuffer, UInt32(pathBuffer.count)) > 0 else {
+                return false
+            }
+            return Self.isGlobalProtectService(
+                executableName: executableName,
+                executablePath: String(cString: pathBuffer)
+            )
         }
+    }
+
+    static func isGlobalProtectService(executableName: String, executablePath: String) -> Bool {
+        executableName == "PanGPS"
+            && executablePath.hasSuffix("/GlobalProtect.app/Contents/Resources/PanGPS")
     }
 
     private func ethernetMedia(for interfaceName: String) -> (isActive: Bool, linkSpeedBitsPerSecond: UInt64?)? {

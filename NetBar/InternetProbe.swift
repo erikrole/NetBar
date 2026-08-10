@@ -17,11 +17,24 @@ actor InternetProbe {
         request.httpMethod = "GET"
         request.setValue("NetBar/1", forHTTPHeaderField: "User-Agent")
         do {
-            let (_, response) = try await session.data(for: request)
-            guard let http = response as? HTTPURLResponse else { return false }
-            return (200 ..< 400).contains(http.statusCode)
+            let (data, response) = try await session.data(for: request)
+            return InternetProbeValidator.isSuccessful(data: data, response: response)
         } catch {
             return false
         }
+    }
+}
+
+enum InternetProbeValidator {
+    private static let successMarker = "<body>success</body>"
+
+    static func isSuccessful(data: Data, response: URLResponse) -> Bool {
+        guard let http = response as? HTTPURLResponse,
+              http.statusCode == 200,
+              http.url?.host?.caseInsensitiveCompare("captive.apple.com") == .orderedSame,
+              let body = String(data: data, encoding: .utf8)
+        else { return false }
+
+        return body.range(of: successMarker, options: .caseInsensitive) != nil
     }
 }

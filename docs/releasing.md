@@ -25,7 +25,7 @@ NOTARY_PRIVATE_KEY_PATH="/path/to/AuthKey_KEYID.p8" \
 
 The script generates a Release archive, exports Developer ID-signed
 `NetBar.app`, submits a ZIP to Apple's notary service, staples the ticket, and
-writes `.release/NetBar-0.1.0-arm64.zip` plus a portable SHA-256 checksum.
+writes `.release/NetBar-<version>-arm64.zip` plus a portable SHA-256 checksum.
 
 ## GitHub release
 
@@ -43,8 +43,8 @@ Actions secrets:
 After the secrets are configured:
 
 ```sh
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.2.0
+git push origin v0.2.0
 ```
 
 Do not commit certificates, private keys, provisioning assets, or notarization
