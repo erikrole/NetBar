@@ -8,8 +8,22 @@ PROJECT="NetBar.xcodeproj"
 SCHEME="NetBar"
 CONFIGURATION="Release"
 OUTPUT_DIR="${OUTPUT_DIR:-$ROOT_DIR/.release}"
-ARCHIVE_PATH="$OUTPUT_DIR/NetBar.xcarchive"
-EXPORT_PATH="$OUTPUT_DIR/export"
+if [[ "$OUTPUT_DIR" != /* ]]; then
+    OUTPUT_DIR="$ROOT_DIR/$OUTPUT_DIR"
+fi
+mkdir -p "$OUTPUT_DIR"
+OUTPUT_DIR="$(cd "$OUTPUT_DIR" && pwd -P)"
+case "$OUTPUT_DIR" in
+    "$ROOT_DIR/.release"|"$ROOT_DIR/.release/"*) ;;
+    *)
+        echo "OUTPUT_DIR must be .release or one of its subdirectories." >&2
+        exit 2
+        ;;
+esac
+
+STAGING_DIR="$OUTPUT_DIR/.netbar-staging"
+ARCHIVE_PATH="$STAGING_DIR/NetBar.xcarchive"
+EXPORT_PATH="$STAGING_DIR/export"
 
 require_command() {
     command -v "$1" >/dev/null 2>&1 || {
@@ -49,8 +63,9 @@ if [[ -z "$NOTARY_PROFILE" && ( -z "$NOTARY_KEY_ID" || -z "$NOTARY_ISSUER_ID" ||
     exit 2
 fi
 
-rm -rf "$OUTPUT_DIR"
-mkdir -p "$OUTPUT_DIR"
+rm -rf "$STAGING_DIR"
+mkdir -p "$STAGING_DIR"
+trap 'rm -rf "$STAGING_DIR"' EXIT
 
 xcodegen generate
 
@@ -60,6 +75,14 @@ if [[ -z "$VERSION" ]]; then
     echo "Could not read MARKETING_VERSION from Xcode build settings." >&2
     exit 1
 fi
+if [[ ! "$VERSION" =~ ^[0-9]+([.][0-9]+)*([-+][A-Za-z0-9.-]+)?$ ]]; then
+    echo "MARKETING_VERSION contains unsafe filename characters: $VERSION" >&2
+    exit 1
+fi
+
+ZIP_PATH="$OUTPUT_DIR/NetBar-${VERSION}-arm64.zip"
+SHA_PATH="$ZIP_PATH.sha256"
+rm -f "$ZIP_PATH" "$SHA_PATH"
 
 xcodebuild archive \
     -project "$PROJECT" \
@@ -73,7 +96,7 @@ xcodebuild archive \
     ENABLE_HARDENED_RUNTIME=YES \
     ARCHS=arm64
 
-EXPORT_OPTIONS="$OUTPUT_DIR/ExportOptions.plist"
+EXPORT_OPTIONS="$STAGING_DIR/ExportOptions.plist"
 cat > "$EXPORT_OPTIONS" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -97,8 +120,6 @@ xcodebuild -exportArchive \
     -exportOptionsPlist "$EXPORT_OPTIONS"
 
 APP_PATH="$EXPORT_PATH/NetBar.app"
-ZIP_PATH="$OUTPUT_DIR/NetBar-${VERSION}-arm64.zip"
-SHA_PATH="$ZIP_PATH.sha256"
 
 test -d "$APP_PATH" || {
     echo "Export did not produce $APP_PATH" >&2

@@ -90,7 +90,9 @@ struct SystemNetworkReader: Sendable {
     }
 
     func counters(for interfaceName: String) -> InterfaceCounters? {
-        var mib = [CTL_NET, PF_ROUTE, 0, 0, NET_RT_IFLIST2, 0]
+        let interfaceIndex = interfaceName.withCString { if_nametoindex($0) }
+        guard interfaceIndex != 0 else { return nil }
+        var mib = [CTL_NET, PF_ROUTE, 0, 0, NET_RT_IFLIST2, Int32(interfaceIndex)]
         var length = 0
         guard sysctl(&mib, u_int(mib.count), nil, &length, nil, 0) == 0, length > 0 else { return nil }
 
@@ -131,20 +133,79 @@ struct SystemNetworkReader: Sendable {
     }
 
     func wifiReading() -> WiFiReading {
+#if DEBUG
+        let fixtureSSID = ProcessInfo.processInfo.environment["NETBAR_UI_TEST_SSID"]
+#endif
         guard let interface = CWWiFiClient.shared().interface() else {
+#if DEBUG
+            if let fixtureSSID {
+                return Self.uiTestWiFiReading(ssid: fixtureSSID)
+            }
+#endif
             return WiFiReading(isPowered: false)
         }
-        return WiFiReading(
-            interfaceName: interface.interfaceName,
-            ssid: interface.ssid(),
-            rssi: interface.powerOn() ? interface.rssiValue() : nil,
-            noise: interface.powerOn() ? interface.noiseMeasurement() : nil,
-            transmitRate: interface.powerOn() ? interface.transmitRate() : nil,
-            channelNumber: interface.wlanChannel()?.channelNumber,
-            channelBand: interface.wlanChannel()?.channelBand,
-            channelWidth: interface.wlanChannel()?.channelWidth,
-            isPowered: interface.powerOn()
+        let isPowered = interface.powerOn()
+        let rawRSSI = isPowered ? interface.rssiValue() : 0
+        let rawNoise = isPowered ? interface.noiseMeasurement() : 0
+        let rawTransmitRate = isPowered ? interface.transmitRate() : 0
+        let channel = isPowered ? interface.wlanChannel() : nil
+        let isAssociated = Self.wifiAssociationIsActive(
+            rssi: rawRSSI,
+            noise: rawNoise,
+            transmitRate: rawTransmitRate,
+            hasChannel: channel != nil
         )
+        var reading = WiFiReading(
+            interfaceName: interface.interfaceName,
+            ssid: isAssociated ? interface.ssid() : nil,
+            rssi: isAssociated ? Self.validWiFiMeasurement(rawRSSI) : nil,
+            noise: isAssociated ? Self.validWiFiMeasurement(rawNoise) : nil,
+            transmitRate: isAssociated ? Self.validWiFiTransmitRate(rawTransmitRate) : nil,
+            channelNumber: isAssociated ? channel?.channelNumber : nil,
+            channelBand: isAssociated ? channel?.channelBand : nil,
+            channelWidth: isAssociated ? channel?.channelWidth : nil,
+            isPowered: isPowered,
+            isAssociated: isAssociated
+        )
+#if DEBUG
+        if let fixtureSSID {
+            reading = Self.uiTestWiFiReading(ssid: fixtureSSID)
+        }
+#endif
+        return reading
+    }
+
+#if DEBUG
+    private static func uiTestWiFiReading(ssid: String) -> WiFiReading {
+        WiFiReading(
+            interfaceName: "en0",
+            ssid: ssid,
+            rssi: -61,
+            noise: -92,
+            transmitRate: 173,
+            channelNumber: 44,
+            channelBand: .band5GHz,
+            isPowered: true,
+            isAssociated: true
+        )
+    }
+#endif
+
+    static func wifiAssociationIsActive(
+        rssi: Int,
+        noise: Int,
+        transmitRate: Double,
+        hasChannel: Bool
+    ) -> Bool {
+        rssi != 0 || noise != 0 || transmitRate > 0 || hasChannel
+    }
+
+    static func validWiFiMeasurement(_ value: Int) -> Int? {
+        value == 0 ? nil : value
+    }
+
+    static func validWiFiTransmitRate(_ value: Double) -> Double? {
+        value > 0 ? value : nil
     }
 
     func activeEthernetConnections() -> [EthernetConnection] {
@@ -211,9 +272,13 @@ struct SystemNetworkReader: Sendable {
             guard proc_pidpath(process.kp_proc.p_pid, &pathBuffer, UInt32(pathBuffer.count)) > 0 else {
                 return false
             }
+            let executablePath = String(
+                decoding: pathBuffer.prefix { $0 != 0 }.map { UInt8(bitPattern: $0) },
+                as: UTF8.self
+            )
             return Self.isGlobalProtectService(
                 executableName: executableName,
-                executablePath: String(cString: pathBuffer)
+                executablePath: executablePath
             )
         }
     }

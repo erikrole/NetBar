@@ -7,6 +7,7 @@ import Observation
 @Observable
 final class LocationPermissionController: NSObject, @preconcurrency CLLocationManagerDelegate {
     private(set) var authorizationStatus: CLAuthorizationStatus
+    @ObservationIgnored var authorizationDidChange: ((CLAuthorizationStatus) -> Void)?
     private let manager = CLLocationManager()
 
     override init() {
@@ -35,11 +36,14 @@ final class LocationPermissionController: NSObject, @preconcurrency CLLocationMa
     }
 
     func openSettings() {
-        guard let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_LocationServices") else { return }
+        guard let url = URL(
+            string: "x-apple.systempreferences:com.apple.preference.security?Privacy_LocationServices"
+        ) else { return }
         NSWorkspace.shared.open(url)
     }
 
     func locationManagerDidChangeAuthorization(_ manager: CLLocationManager) {
         authorizationStatus = manager.authorizationStatus
+        authorizationDidChange?(authorizationStatus)
     }
 }

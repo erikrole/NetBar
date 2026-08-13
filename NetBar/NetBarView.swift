@@ -12,13 +12,14 @@ struct NetBarView: View {
             header
             Divider()
             ScrollView {
-                VStack(spacing: 16) {
+                VStack(spacing: 12) {
                     throughput
                     connection
                     vpn
                     wifi
                 }
-                .padding(16)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
             }
             Divider()
             footer
@@ -29,16 +30,20 @@ struct NetBarView: View {
 
     private var header: some View {
         HStack(spacing: 11) {
-            StatusBadge(state: monitor.reading.state, transport: monitor.reading.transport)
+            HStack(spacing: 11) {
+                StatusBadge(state: monitor.reading.state, transport: monitor.reading.transport)
 
-            VStack(alignment: .leading, spacing: 2) {
-                Text(monitor.reading.friendlyTitle)
-                    .font(.headline)
-                Text(monitor.reading.statusSubtitle)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(monitor.reading.friendlyTitle)
+                        .font(.headline)
+                    Text(monitor.reading.statusSubtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
             }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(monitor.reading.accessibilitySummary)
 
             Spacer()
 
@@ -49,10 +54,9 @@ struct NetBarView: View {
             }
             .buttonStyle(.borderless)
             .help("Check internet now")
+            .accessibilityLabel("Check internet now")
         }
         .padding(16)
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(monitor.reading.state.accessibilityDescription)
     }
 
     private var throughput: some View {
@@ -109,13 +113,12 @@ struct NetBarView: View {
         InfoSection(title: "Wi-Fi", symbol: "wifi") {
             if !monitor.reading.wifi.isPowered {
                 InfoRow(label: "Radio", value: "Off")
+            } else if !monitor.reading.wifi.isAssociated {
+                InfoRow(label: "Network", value: "Not connected", valueColor: .secondary)
             } else {
+                InfoRow(label: "Network", value: monitor.reading.wifi.ssid ?? "Unavailable")
                 if monitor.reading.transport != .wifi {
-                    InfoRow(label: "Network", value: monitor.reading.wifi.ssid ?? "Name hidden")
                     InfoRow(label: "Usage", value: "Connected, not active", valueColor: .secondary)
-                }
-                if monitor.reading.wifi.ssid == nil {
-                    wifiPermissionButton
                 }
                 if let rssi = monitor.reading.wifi.rssi {
                     InfoRow(label: "Signal", value: "\(rssi) dBm · \(monitor.reading.wifi.quality ?? "Unknown")")
@@ -131,23 +134,6 @@ struct NetBarView: View {
                 }
 
             }
-        }
-    }
-
-    @ViewBuilder
-    private var wifiPermissionButton: some View {
-        if locationPermission.canRequest {
-            Button("Allow Wi-Fi network name") {
-                locationPermission.request()
-            }
-            .buttonStyle(.link)
-            .font(.caption)
-        } else if locationPermission.isDenied {
-            Button("Open Location Services") {
-                locationPermission.openSettings()
-            }
-            .buttonStyle(.link)
-            .font(.caption)
         }
     }
 
@@ -168,6 +154,11 @@ struct NetBarView: View {
                     Button("Open Network Settings") {
                         openNetworkSettings()
                     }
+                    if locationPermission.isDenied {
+                        Button("Open Location Services") {
+                            locationPermission.openSettings()
+                        }
+                    }
                     if launchAtLogin.requiresApproval {
                         Button("Open Login Item Settings") {
                             launchAtLogin.openSettings()
@@ -182,6 +173,8 @@ struct NetBarView: View {
                 }
                 .menuStyle(.borderlessButton)
                 .fixedSize()
+                .help("More options")
+                .accessibilityLabel("More options")
             }
 
             if let errorMessage = launchAtLogin.errorMessage {
@@ -338,7 +331,7 @@ private struct ThroughputCard: View {
                 color: .purple
             )
             HStack {
-                Text("Live while open")
+                Text("Last 60 seconds")
                 Spacer()
                 Text("1 second samples")
             }
@@ -462,11 +455,11 @@ private struct InfoSection<Content: View>: View {
     @ViewBuilder let content: Content
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 8) {
             Label(title, systemImage: symbol)
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
-            VStack(spacing: 8) { content }
+            VStack(spacing: 6) { content }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }

@@ -42,8 +42,8 @@ enum ProbeResult: Sendable {
 }
 
 enum MonitoringCadence {
-    static let interactiveSampleInterval: TimeInterval = 1
-    static let interactiveMetadataInterval = 10
+    static let throughputSampleInterval: TimeInterval = 1
+    static let interactiveMetadataInterval: TimeInterval = 10
     static let backgroundRefreshInterval: TimeInterval = 30
     static let backgroundTimerTolerance: TimeInterval = 5
     static let internetProbeInterval: TimeInterval = 30
@@ -75,6 +75,7 @@ struct WiFiReading: Equatable, Sendable {
     var channelBand: CWChannelBand?
     var channelWidth: CWChannelWidth?
     var isPowered: Bool
+    var isAssociated = false
 
     var snr: Int? {
         guard let rssi, let noise else { return nil }
@@ -82,7 +83,7 @@ struct WiFiReading: Equatable, Sendable {
     }
 
     var quality: String? {
-        guard let rssi else { return nil }
+        guard let rssi, rssi < 0 else { return nil }
         if rssi >= -55 { return "Excellent" }
         if rssi >= -67 { return "Good" }
         if rssi >= -75 { return "Fair" }
@@ -132,7 +133,6 @@ struct NetworkReading: Sendable {
     var lastUpdated = Date()
 
     var friendlyTitle: String {
-        guard state != .offline else { return "No connection" }
         switch transport {
         case .wifi:
             guard let ssid = wifi.ssid?.trimmingCharacters(in: .whitespacesAndNewlines), !ssid.isEmpty else {
@@ -161,9 +161,7 @@ struct NetworkReading: Sendable {
     }
 
     var accessibilitySummary: String {
-        let down = ByteRateFormatter.string(downloadBytesPerSecond)
-        let up = ByteRateFormatter.string(uploadBytesPerSecond)
-        return "\(state.accessibilityDescription). Using \(friendlyTitle). Download \(down), upload \(up)."
+        "\(state.accessibilityDescription). Using \(friendlyTitle)."
     }
 }
 
@@ -211,6 +209,58 @@ enum ByteRateFormatter {
 struct InterfaceCounters: Equatable, Sendable {
     let receivedBytes: UInt64
     let sentBytes: UInt64
+}
+
+struct ThroughputSessionTracker: Sendable {
+    private(set) var interfaceName: String?
+    private(set) var transport: TransportKind = .none
+    private(set) var confirmedSSID: String?
+    private var hasIdentity = false
+
+    mutating func update(
+        interfaceName: String?,
+        transport: TransportKind,
+        currentSSID: String?
+    ) -> Bool {
+        let normalizedSSID = Self.normalizedSSID(currentSSID)
+        let interfaceChanged = self.interfaceName != interfaceName
+        let transportChanged = self.transport != transport
+        let ssidChanged = transport == .wifi
+            && confirmedSSID != nil
+            && normalizedSSID != nil
+            && confirmedSSID != normalizedSSID
+        let changed = !hasIdentity || interfaceChanged || transportChanged || ssidChanged
+
+        hasIdentity = true
+        self.interfaceName = interfaceName
+        self.transport = transport
+        if transport != .wifi {
+            confirmedSSID = nil
+        } else if interfaceChanged || transportChanged {
+            confirmedSSID = normalizedSSID
+        } else if let normalizedSSID {
+            confirmedSSID = normalizedSSID
+        }
+        return changed
+    }
+
+    private static func normalizedSSID(_ value: String?) -> String? {
+        guard let value = value?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else {
+            return nil
+        }
+        return value
+    }
+}
+
+struct ProbeRouteIdentity: Equatable, Sendable {
+    let pathSatisfied: Bool
+    let transport: TransportKind
+    let interfaceName: String?
+    let localAddress: String?
+    let routerAddress: String?
+    let vpnInterfaceName: String?
+    let confirmedWiFiSSID: String?
+    let wifiRouteGeneration: Int
 }
 
 enum ThroughputCalculator {

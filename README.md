@@ -10,7 +10,7 @@ NetBar is a native macOS menu bar utility for answering the network questions th
 - Wi-Fi SSID, signal, noise, SNR, transmit rate, and channel
 - active router and local IP address without exposing BSD interface names
 
-The menu bar shows a native Wi-Fi, Ethernet, or generic network symbol for the route macOS is actually using, with a compact health dot beside it. Green means the internet probe succeeded, yellow means a local route exists but the internet probe is not responding, and red means macOS has no usable network path. Live rates stay inside the popover, where separate download and upload graphs show the last 60 one-second samples and their recent peaks.
+The menu bar shows a native Wi-Fi, Ethernet, or generic network symbol for the route macOS is actually using, with a compact health dot beside it. Green means the internet probe succeeded, yellow means the probe is checking or a local route has not produced a successful internet response, and red means macOS has no usable network path. Live rates stay inside the popover, where separate download and upload graphs show the last 60 one-second samples and their recent peaks. Sampling continues while the popover is closed, so the recent history is ready when you open it.
 
 ## Build and run
 
@@ -22,11 +22,11 @@ xcodebuild -project NetBar.xcodeproj -scheme NetBar -configuration Debug build
 open ~/Library/Developer/Xcode/DerivedData/NetBar-*/Build/Products/Debug/NetBar.app
 ```
 
-NetBar is an accessory app, so it appears only in the menu bar. Wi-Fi network names require Location Services permission on current macOS versions. NetBar requests that permission automatically the first time it runs. After you allow it, the stable signed app identity lets macOS retain the choice across builds.
+NetBar is an accessory app, so it appears only in the menu bar. Wi-Fi network names require Location Services permission on current macOS versions. NetBar requests that permission when you first open the popover. After you allow it, the stable signed app identity lets macOS retain the choice across builds.
 
 ## Background efficiency
 
-NetBar reacts immediately to macOS network-path changes. With its popover closed, it refreshes detailed interface, Wi-Fi, Ethernet, VPN, and internet-health information every 30 seconds using a coalescible timer. One-second throughput sampling runs only while the popover is visible, then stops as soon as it closes.
+NetBar reacts immediately to macOS network-path changes. It samples the active interface's lightweight byte counters once per second to retain a rolling 60-second throughput history. With its popover closed, the more expensive interface, Wi-Fi, Ethernet, VPN, and internet-health refresh stays on a coalescible 30-second timer.
 
 ## Test
 

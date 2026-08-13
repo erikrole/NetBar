@@ -43,9 +43,14 @@ Actions secrets:
 After the secrets are configured:
 
 ```sh
-git tag v0.2.0
-git push origin v0.2.0
+version="X.Y.Z"
+git tag "v${version}"
+git push origin "v${version}"
 ```
+
+Before tagging, bump `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` in
+`project.yml`, regenerate the Xcode project, and run the full test suite. The
+tag version must exactly match `MARKETING_VERSION`.
 
 Do not commit certificates, private keys, provisioning assets, or notarization
 credentials.

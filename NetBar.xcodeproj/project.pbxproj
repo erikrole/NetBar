@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		1086E1F8590385408B3F5A83 /* WiFiEventMonitor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 238EE09825E317C0BEEE503E /* WiFiEventMonitor.swift */; };
 		1600010180B66278FA98B877 /* SystemNetworkReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 97E527E267CA191F36677EEE /* SystemNetworkReader.swift */; };
 		2B6CFE707080DCFD93F1832F /* NetBarApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CF9E25E6FB350C0DFE64586 /* NetBarApp.swift */; };
 		31C49453E923438DB5A090AE /* NetBarTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 81388D2422E5E9D883E083F9 /* NetBarTests.swift */; };
@@ -45,6 +46,7 @@
 		075DDAA1897CD93496E7181F /* SystemConfiguration.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SystemConfiguration.framework; path = System/Library/Frameworks/SystemConfiguration.framework; sourceTree = SDKROOT; };
 		0922B72093ABBDFF9F09A8CA /* NetBar.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NetBar.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		1CF9E25E6FB350C0DFE64586 /* NetBarApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NetBarApp.swift; sourceTree = "<group>"; };
+		238EE09825E317C0BEEE503E /* WiFiEventMonitor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WiFiEventMonitor.swift; sourceTree = "<group>"; };
 		3343BEC0407D34ADB079D841 /* InternetProbe.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InternetProbe.swift; sourceTree = "<group>"; };
 		5A9599B1E811B52F85C2D79B /* LocationPermissionController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationPermissionController.swift; sourceTree = "<group>"; };
 		64BDE2A3ED87BF0C410F62DF /* CoreWLAN.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreWLAN.framework; path = System/Library/Frameworks/CoreWLAN.framework; sourceTree = SDKROOT; };
@@ -89,6 +91,7 @@
 				F70EF9AF3F48843626D8AD65 /* NetBarView.swift */,
 				913B0CB5EB972A913C298FCF /* NetworkMonitor.swift */,
 				97E527E267CA191F36677EEE /* SystemNetworkReader.swift */,
+				238EE09825E317C0BEEE503E /* WiFiEventMonitor.swift */,
 			);
 			path = NetBar;
 			sourceTree = "<group>";
@@ -271,6 +274,7 @@
 				BD3205F0F4F0AF6CED25539F /* NetBarView.swift in Sources */,
 				97B90019D55A577160C24A43 /* NetworkMonitor.swift in Sources */,
 				1600010180B66278FA98B877 /* SystemNetworkReader.swift in Sources */,
+				1086E1F8590385408B3F5A83 /* WiFiEventMonitor.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -360,19 +364,20 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
-				INFOPLIST_KEY_CFBundleDisplayName = NetBar;
+				INFOPLIST_KEY_CFBundleDisplayName = "NetBar Debug";
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSLocationUsageDescription = "NetBar uses location permission only to read the name of the Wi-Fi network connected to this Mac.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "NetBar uses location permission only to read the name of the Wi-Fi network connected to this Mac.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.2.0;
-				PRODUCT_BUNDLE_IDENTIFIER = com.erole.NetBar;
+				MARKETING_VERSION = 0.3.0;
+				PRODUCT_BUNDLE_IDENTIFIER = com.erole.NetBar.Debug;
 				PRODUCT_NAME = NetBar;
 				SDKROOT = macosx;
 			};
@@ -492,18 +497,19 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_STYLE = Automatic;
 				COMBINE_HIDPI_IMAGES = YES;
-				CURRENT_PROJECT_VERSION = 2;
+				CURRENT_PROJECT_VERSION = 3;
 				ENABLE_HARDENED_RUNTIME = YES;
 				GENERATE_INFOPLIST_FILE = YES;
 				INFOPLIST_KEY_CFBundleDisplayName = NetBar;
 				INFOPLIST_KEY_LSApplicationCategoryType = "public.app-category.utilities";
 				INFOPLIST_KEY_LSUIElement = YES;
+				INFOPLIST_KEY_NSLocationUsageDescription = "NetBar uses location permission only to read the name of the Wi-Fi network connected to this Mac.";
 				INFOPLIST_KEY_NSLocationWhenInUseUsageDescription = "NetBar uses location permission only to read the name of the Wi-Fi network connected to this Mac.";
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
 				);
-				MARKETING_VERSION = 0.2.0;
+				MARKETING_VERSION = 0.3.0;
 				PRODUCT_BUNDLE_IDENTIFIER = com.erole.NetBar;
 				PRODUCT_NAME = NetBar;
 				SDKROOT = macosx;

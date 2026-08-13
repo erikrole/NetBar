@@ -5,7 +5,7 @@ import XCTest
 
 final class NetBarTests: XCTestCase {
     func testBackgroundMonitoringUsesLowFrequencyCadence() {
-        XCTAssertEqual(MonitoringCadence.interactiveSampleInterval, 1)
+        XCTAssertEqual(MonitoringCadence.throughputSampleInterval, 1)
         XCTAssertEqual(MonitoringCadence.interactiveMetadataInterval, 10)
         XCTAssertGreaterThanOrEqual(MonitoringCadence.backgroundRefreshInterval, 30)
         XCTAssertGreaterThanOrEqual(MonitoringCadence.internetProbeInterval, 30)
@@ -70,6 +70,17 @@ final class NetBarTests: XCTestCase {
         XCTAssertEqual(ThroughputCalculator.rate(previous: 1_000, current: 4_000, interval: 0), 0)
     }
 
+    func testProbeResultOnlyAppliesToTheRouteThatStartedIt() {
+        XCTAssertTrue(NetworkMonitor.shouldApplyProbeResult(
+            startedGeneration: 4,
+            currentGeneration: 4
+        ))
+        XCTAssertFalse(NetworkMonitor.shouldApplyProbeResult(
+            startedGeneration: 4,
+            currentGeneration: 5
+        ))
+    }
+
     func testByteRateFormatting() {
         XCTAssertEqual(ByteRateFormatter.string(0), "0 B/s")
         XCTAssertEqual(ByteRateFormatter.string(1_500), "1.5 KB/s")
@@ -78,9 +89,29 @@ final class NetBarTests: XCTestCase {
     }
 
     func testWiFiQualityAndSNR() {
-        let reading = WiFiReading(rssi: -61, noise: -92, isPowered: true)
+        let reading = WiFiReading(rssi: -61, noise: -92, isPowered: true, isAssociated: true)
         XCTAssertEqual(reading.quality, "Good")
         XCTAssertEqual(reading.snr, 31)
+        XCTAssertNil(WiFiReading(rssi: 0, isPowered: true).quality)
+    }
+
+    func testWiFiAssociationRejectsCoreWLANErrorSentinels() {
+        XCTAssertFalse(SystemNetworkReader.wifiAssociationIsActive(
+            rssi: 0,
+            noise: 0,
+            transmitRate: 0,
+            hasChannel: false
+        ))
+        XCTAssertTrue(SystemNetworkReader.wifiAssociationIsActive(
+            rssi: -61,
+            noise: -92,
+            transmitRate: 173,
+            hasChannel: true
+        ))
+        XCTAssertNil(SystemNetworkReader.validWiFiMeasurement(0))
+        XCTAssertEqual(SystemNetworkReader.validWiFiMeasurement(-61), -61)
+        XCTAssertNil(SystemNetworkReader.validWiFiTransmitRate(0))
+        XCTAssertEqual(SystemNetworkReader.validWiFiTransmitRate(173), 173)
     }
 
     func testFriendlyWiFiIdentityUsesSSIDWithoutInterfaceName() {
@@ -114,13 +145,78 @@ final class NetBarTests: XCTestCase {
         XCTAssertEqual(reading.statusSubtitle, "Online")
     }
 
-    func testOfflineIdentityDoesNotClaimAStaleNetwork() {
+    func testOfflineWiFiIdentityKeepsTheAssociatedNetworkName() {
         var reading = NetworkReading()
         reading.state = .offline
         reading.transport = .wifi
         reading.wifi = WiFiReading(ssid: "Role", isPowered: true)
 
-        XCTAssertEqual(reading.friendlyTitle, "No connection")
+        XCTAssertEqual(reading.friendlyTitle, "Role")
+    }
+
+    func testThroughputSessionPreservesConfirmedSSIDAcrossUnknownReadings() {
+        var tracker = ThroughputSessionTracker()
+
+        XCTAssertTrue(tracker.update(interfaceName: "en0", transport: .wifi, currentSSID: "Home"))
+        XCTAssertFalse(tracker.update(interfaceName: "en0", transport: .wifi, currentSSID: nil))
+        XCTAssertEqual(tracker.confirmedSSID, "Home")
+        XCTAssertTrue(tracker.update(interfaceName: "en0", transport: .wifi, currentSSID: "Office"))
+        XCTAssertEqual(tracker.confirmedSSID, "Office")
+    }
+
+    func testThroughputSessionIgnoresPermissionRoundTripAndResetsForRouteChanges() {
+        var tracker = ThroughputSessionTracker()
+
+        XCTAssertTrue(tracker.update(interfaceName: "en0", transport: .wifi, currentSSID: "Home"))
+        XCTAssertFalse(tracker.update(interfaceName: "en0", transport: .wifi, currentSSID: nil))
+        XCTAssertFalse(tracker.update(interfaceName: "en0", transport: .wifi, currentSSID: "Home"))
+        XCTAssertTrue(tracker.update(interfaceName: "en10", transport: .ethernet, currentSSID: "Office"))
+        XCTAssertNil(tracker.confirmedSSID)
+        XCTAssertFalse(tracker.update(interfaceName: "en10", transport: .ethernet, currentSSID: "Other"))
+    }
+
+    func testProbeRouteIdentityIncludesGatewayVPNAndWiFiEvents() {
+        let baseline = ProbeRouteIdentity(
+            pathSatisfied: true,
+            transport: .wifi,
+            interfaceName: "en0",
+            localAddress: "192.168.1.10",
+            routerAddress: "192.168.1.1",
+            vpnInterfaceName: nil,
+            confirmedWiFiSSID: "Home",
+            wifiRouteGeneration: 4
+        )
+
+        XCTAssertNotEqual(baseline, ProbeRouteIdentity(
+            pathSatisfied: true,
+            transport: .wifi,
+            interfaceName: "en0",
+            localAddress: "192.168.1.10",
+            routerAddress: "192.168.2.1",
+            vpnInterfaceName: nil,
+            confirmedWiFiSSID: "Home",
+            wifiRouteGeneration: 4
+        ))
+        XCTAssertNotEqual(baseline, ProbeRouteIdentity(
+            pathSatisfied: true,
+            transport: .wifi,
+            interfaceName: "en0",
+            localAddress: "192.168.1.10",
+            routerAddress: "192.168.1.1",
+            vpnInterfaceName: "utun9",
+            confirmedWiFiSSID: "Home",
+            wifiRouteGeneration: 4
+        ))
+        XCTAssertNotEqual(baseline, ProbeRouteIdentity(
+            pathSatisfied: true,
+            transport: .wifi,
+            interfaceName: "en0",
+            localAddress: "192.168.1.10",
+            routerAddress: "192.168.1.1",
+            vpnInterfaceName: nil,
+            confirmedWiFiSSID: "Home",
+            wifiRouteGeneration: 5
+        ))
     }
 
     func testLinkSpeedFormatting() {

@@ -22,7 +22,15 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         configurePopover()
         configureStatusItem()
         observeMonitor()
-        locationPermission.requestAutomaticallyIfNeeded()
+        locationPermission.authorizationDidChange = { [weak self] status in
+            guard let self else { return }
+            self.monitor.refreshNetworkDetails()
+            if status == .authorizedAlways {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
+                    self?.monitor.refreshNetworkDetails()
+                }
+            }
+        }
     }
 
     private func configurePopover() {
@@ -116,6 +124,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         launchAtLogin.refresh()
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         popover.contentViewController?.view.window?.becomeKey()
+        locationPermission.requestAutomaticallyIfNeeded()
     }
 
     func popoverWillShow(_ notification: Notification) {
