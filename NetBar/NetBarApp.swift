@@ -17,10 +17,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private let locationPermission = LocationPermissionController()
     private let popover = NSPopover()
     private var statusItem: NSStatusItem?
+    private var outsideClickMonitor: Any?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         configurePopover()
         configureStatusItem()
+        configureOutsideClickMonitor()
         observeMonitor()
         locationPermission.authorizationDidChange = { [weak self] status in
             guard let self else { return }
@@ -62,6 +64,17 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         item.isVisible = true
         statusItem = item
         updateStatusItem()
+    }
+
+    private func configureOutsideClickMonitor() {
+        outsideClickMonitor = NSEvent.addGlobalMonitorForEvents(
+            matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]
+        ) { [weak self] _ in
+            Task { @MainActor [weak self] in
+                guard let self, self.popover.isShown else { return }
+                self.popover.performClose(nil)
+            }
+        }
     }
 
     private func observeMonitor() {
@@ -125,6 +138,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         popover.show(relativeTo: button.bounds, of: button, preferredEdge: .minY)
         popover.contentViewController?.view.window?.becomeKey()
         locationPermission.requestAutomaticallyIfNeeded()
+    }
+
+    func applicationWillTerminate(_ notification: Notification) {
+        if let outsideClickMonitor {
+            NSEvent.removeMonitor(outsideClickMonitor)
+        }
     }
 
     func popoverWillShow(_ notification: Notification) {

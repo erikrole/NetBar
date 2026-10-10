@@ -36,6 +36,8 @@ struct NetBarView: View {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(monitor.reading.friendlyTitle)
                         .font(.headline)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
                     Text(monitor.reading.statusSubtitle)
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -53,6 +55,7 @@ struct NetBarView: View {
                 Image(systemName: "arrow.clockwise")
             }
             .buttonStyle(.borderless)
+            .frame(width: 24, height: 24)
             .help("Check internet now")
             .accessibilityLabel("Check internet now")
         }
@@ -103,6 +106,7 @@ struct NetBarView: View {
                 Label(globalProtectLaunchError, systemImage: "exclamationmark.triangle.fill")
                     .font(.caption)
                     .foregroundStyle(.red)
+                    .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("GlobalProtectLaunchError")
             }
         }
@@ -151,16 +155,16 @@ struct NetBarView: View {
                 Spacer()
 
                 Menu {
-                    Button("Open Network Settings") {
+                    Button("Open Network Settings…") {
                         openNetworkSettings()
                     }
                     if locationPermission.isDenied {
-                        Button("Open Location Services") {
+                        Button("Open Location Services…") {
                             locationPermission.openSettings()
                         }
                     }
                     if launchAtLogin.requiresApproval {
-                        Button("Open Login Item Settings") {
+                        Button("Open Login Item Settings…") {
                             launchAtLogin.openSettings()
                         }
                     }
@@ -172,7 +176,7 @@ struct NetBarView: View {
                     Image(systemName: "ellipsis.circle")
                 }
                 .menuStyle(.borderlessButton)
-                .fixedSize()
+                .frame(width: 24, height: 24)
                 .help("More options")
                 .accessibilityLabel("More options")
             }
@@ -180,11 +184,12 @@ struct NetBarView: View {
             if let errorMessage = launchAtLogin.errorMessage {
                 Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
                     .foregroundStyle(.red)
+                    .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("LaunchAtLoginError")
             } else if launchAtLogin.requiresApproval {
                 HStack(spacing: 4) {
                     Text("Login item approval required.")
-                    Button("Open Settings") {
+                    Button("Open Settings…") {
                         launchAtLogin.openSettings()
                     }
                     .buttonStyle(.link)
@@ -198,10 +203,9 @@ struct NetBarView: View {
     }
 
     private func sectionTitle(_ title: String) -> some View {
-        Text(title.uppercased())
-            .font(.caption2.weight(.semibold))
+        Text(title)
+            .font(.caption.weight(.semibold))
             .foregroundStyle(.secondary)
-            .tracking(0.45)
     }
 
     private func openNetworkSettings() {
@@ -241,10 +245,9 @@ private struct StatusBadge: View {
         ZStack {
             Circle()
                 .fill(state.swiftUIColor)
-                .shadow(color: state.swiftUIColor.opacity(0.28), radius: 4)
                 .overlay {
                     Circle()
-                        .stroke(.black.opacity(0.18), lineWidth: 0.75)
+                        .stroke(.quaternary, lineWidth: 0.75)
                 }
             if transport != .none {
                 Image(systemName: transport.statusSymbolName)
