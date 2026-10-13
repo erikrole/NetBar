@@ -6,15 +6,20 @@ struct NetBarApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
 
     var body: some Scene {
-        Settings { EmptyView() }
+        Settings {
+            SettingsView(
+                launchAtLogin: appDelegate.launchAtLogin,
+                locationPermission: appDelegate.locationPermission
+            )
+        }
     }
 }
 
 @MainActor
 final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private let monitor = NetworkMonitor()
-    private let launchAtLogin = LaunchAtLoginController()
-    private let locationPermission = LocationPermissionController()
+    let launchAtLogin = LaunchAtLoginController()
+    let locationPermission = LocationPermissionController()
     private let popover = NSPopover()
     private var statusItem: NSStatusItem?
     private var outsideClickMonitor: Any?
@@ -23,7 +28,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         configurePopover()
         configureStatusItem()
-        configureOutsideClickMonitor()
         observeMonitor()
         locationPermission.authorizationDidChange = { [weak self] status in
             guard let self else { return }
@@ -40,7 +44,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         popover.behavior = .transient
         popover.animates = true
         popover.delegate = self
-        popover.contentSize = NSSize(width: 360, height: 620)
+        popover.contentSize = NSSize(width: 360, height: 656)
         popover.contentViewController = NSHostingController(
             rootView: NetBarView(
                 monitor: monitor,
@@ -67,7 +71,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         updateStatusItem()
     }
 
-    private func configureOutsideClickMonitor() {
+    private func installOutsideClickMonitor() {
+        guard outsideClickMonitor == nil else { return }
         outsideClickMonitor = NSEvent.addGlobalMonitorForEvents(
             matching: [.leftMouseDown, .rightMouseDown, .otherMouseDown]
         ) { [weak self] _ in
@@ -76,6 +81,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
                 self.popover.performClose(nil)
             }
         }
+    }
+
+    private func removeOutsideClickMonitor() {
+        guard let outsideClickMonitor else { return }
+        NSEvent.removeMonitor(outsideClickMonitor)
+        self.outsideClickMonitor = nil
     }
 
     private func observeMonitor() {
@@ -149,17 +160,66 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     func applicationWillTerminate(_ notification: Notification) {
-        if let outsideClickMonitor {
-            NSEvent.removeMonitor(outsideClickMonitor)
-        }
+        removeOutsideClickMonitor()
     }
 
     func popoverWillShow(_ notification: Notification) {
+        installOutsideClickMonitor()
         monitor.startInteractiveMonitoring()
     }
 
     func popoverDidClose(_ notification: Notification) {
+        removeOutsideClickMonitor()
         monitor.stopInteractiveMonitoring()
+    }
+}
+
+private struct SettingsView: View {
+    let launchAtLogin: LaunchAtLoginController
+    let locationPermission: LocationPermissionController
+
+    var body: some View {
+        Form {
+            Toggle("Launch at login", isOn: Binding(
+                get: { launchAtLogin.isEnabled },
+                set: { launchAtLogin.setEnabled($0) }
+            ))
+
+            if let errorMessage = launchAtLogin.errorMessage {
+                Text(errorMessage)
+                    .font(.callout)
+                    .foregroundStyle(.red)
+                    .fixedSize(horizontal: false, vertical: true)
+            } else if launchAtLogin.requiresApproval {
+                Button("Open Login Item Settings…") {
+                    launchAtLogin.openSettings()
+                }
+            }
+
+            LabeledContent("Wi-Fi name") {
+                Text(locationPermission.wifiNameAccessDescription)
+            }
+            Text("Used only to read the name of the connected network.")
+                .font(.callout)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            if locationPermission.isDenied {
+                Button("Open Location Services…") {
+                    locationPermission.openSettings()
+                }
+            }
+
+            Button("Open Network Settings…") {
+                openNetworkSettings()
+            }
+        }
+        .formStyle(.grouped)
+        .frame(width: 420, height: 300)
+    }
+
+    private func openNetworkSettings() {
+        guard let url = URL(string: "x-apple.systempreferences:com.apple.Network-Settings.extension") else { return }
+        NSWorkspace.shared.open(url)
     }
 }
 

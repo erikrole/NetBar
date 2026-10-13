@@ -10,7 +10,9 @@ NetBar is a native macOS menu bar utility for answering the network questions th
 - Wi-Fi SSID, signal, noise, SNR, transmit rate, and channel
 - active router and local IP address without exposing BSD interface names
 
-The menu bar shows a native Wi-Fi, Ethernet, or generic network symbol for the route macOS is actually using, with a compact health dot beside it. Green means the internet probe succeeded, yellow means the probe is checking or a local route has not produced a successful internet response, and red means macOS has no usable network path. Live rates stay inside the popover, where separate download and upload graphs show the last 60 one-second samples and their recent peaks. Sampling continues while the popover is closed, so the recent history is ready when you open it.
+The menu bar shows a native Wi-Fi, Ethernet, or generic network symbol for the route macOS is actually using, with a compact health dot beside it. Green means the internet probe succeeded, yellow means the probe is checking or a local route has not produced a successful internet response, and red means macOS has no usable network path. Live rates stay inside the popover, where separate download and upload graphs show the last 60 one-second samples and their recent peaks. Sampling continues while the popover is closed, so the recent history is ready when you open it, without redrawing the popover in the meantime.
+
+Launch at login and the Location Services permission used for the Wi-Fi name are in Settings. The popover keeps the launch-at-login switch, along with shortcuts to Network settings and GlobalProtect.
 
 ## Build and run
 
@@ -26,7 +28,7 @@ NetBar is an accessory app, so it appears only in the menu bar. Wi-Fi network na
 
 ## Background efficiency
 
-NetBar reacts immediately to macOS network-path changes. While a route is up, it samples that interface's byte counters about once a second for a rolling 60-second history, and it pauses that timer when nothing is routed. The menu bar redraws only when the route or health changes. With the popover open, only the throughput graphs update on each sample. The heavier interface, Wi-Fi, Ethernet, and internet-health refresh stays on a coalescible 30-second timer while the popover is closed, and 10 seconds while it is open. GlobalProtect's process list check runs only when a tunnel interface is present.
+NetBar reacts immediately to macOS network-path changes. While a route is up, it samples that interface's byte counters about once a second for a rolling 60-second history, and it pauses that timer when nothing is routed. The menu bar redraws only when the route or health changes. With the popover open, only the throughput graphs update on each sample. While it is closed, counter samples stay in memory and are not drawn, and the outside-click watcher is not installed. The heavier interface, Wi-Fi, Ethernet, and internet-health refresh stays on a coalescible 30-second timer while the popover is closed, and 10 seconds while it is open. GlobalProtect's process list check runs only when a tunnel interface is present.
 
 ## Test
 
