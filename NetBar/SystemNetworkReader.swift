@@ -9,55 +9,74 @@ struct SystemNetworkReader: Sendable {
               let value = SCDynamicStoreCopyValue(store, "State:/Network/Global/IPv4" as CFString)
                 as? [String: Any]
         else { return ActiveRoute() }
-        let primary = ActiveRoute(
-            interfaceName: value["PrimaryInterface"] as? String,
-            routerAddress: value["Router"] as? String
+        let primaryInterface = value["PrimaryInterface"] as? String
+        let services: [RouteServiceCandidate]
+        if let primaryInterface, ActiveRouteResolver.isTunnelInterface(primaryInterface) {
+            services = serviceCandidates(in: store)
+        } else {
+            services = []
+        }
+        return ActiveRouteResolver.resolve(
+            primaryInterface: primaryInterface,
+            primaryRouter: value["Router"] as? String,
+            services: services
         )
-        guard primary.interfaceName?.hasPrefix("utun") == true else { return primary }
-        return activePhysicalRoute(in: store) ?? primary
     }
 
-    private func activePhysicalRoute(in store: SCDynamicStore) -> ActiveRoute? {
+    private func serviceCandidates(in store: SCDynamicStore) -> [RouteServiceCandidate] {
         guard let setup = SCDynamicStoreCopyValue(store, "Setup:/Network/Global/IPv4" as CFString)
             as? [String: Any],
               let serviceOrder = setup["ServiceOrder"] as? [String]
-        else { return nil }
+        else { return [] }
 
-        for serviceID in serviceOrder {
+        let addressed = interfaceNamesWithIPv4Address()
+        return serviceOrder.compactMap { serviceID in
             let key = "State:/Network/Service/\(serviceID)/IPv4" as CFString
             guard let service = SCDynamicStoreCopyValue(store, key) as? [String: Any],
-                  let interfaceName = service["InterfaceName"] as? String,
-                  !interfaceName.hasPrefix("utun"),
-                  localIPv4Address(for: interfaceName) != nil
-            else { continue }
-
-            return ActiveRoute(
+                  let interfaceName = service["InterfaceName"] as? String
+            else { return nil }
+            return RouteServiceCandidate(
                 interfaceName: interfaceName,
-                routerAddress: service["Router"] as? String
+                routerAddress: service["Router"] as? String,
+                hasLocalAddress: addressed.contains(interfaceName)
             )
         }
-        return nil
     }
 
-    func displayName(forBSDName name: String) -> String? {
-        guard let interfaces = SCNetworkInterfaceCopyAll() as? [SCNetworkInterface] else { return nil }
-        for interface in interfaces {
-            guard SCNetworkInterfaceGetBSDName(interface) as String? == name else { continue }
-            return SCNetworkInterfaceGetLocalizedDisplayName(interface) as String?
+    private func interfaceNamesWithIPv4Address() -> Set<String> {
+        var pointer: UnsafeMutablePointer<ifaddrs>?
+        guard getifaddrs(&pointer) == 0, let first = pointer else { return [] }
+        defer { freeifaddrs(pointer) }
+
+        var names = Set<String>()
+        for item in sequence(first: first, next: { $0.pointee.ifa_next }) {
+            guard let address = item.pointee.ifa_addr,
+                  address.pointee.sa_family == UInt8(AF_INET)
+            else { continue }
+            names.insert(String(cString: item.pointee.ifa_name))
         }
-        return nil
+        return names
     }
 
-    func transport(forBSDName name: String) -> TransportKind? {
-        guard let interfaces = SCNetworkInterfaceCopyAll() as? [SCNetworkInterface] else { return nil }
+    func interfaceFacts(forBSDName name: String) -> (displayName: String?, transport: TransportKind?) {
+        guard let interfaces = SCNetworkInterfaceCopyAll() as? [SCNetworkInterface] else {
+            return (nil, nil)
+        }
         for interface in interfaces {
             guard SCNetworkInterfaceGetBSDName(interface) as String? == name else { continue }
-            let type = SCNetworkInterfaceGetInterfaceType(interface) as String?
-            if type == kSCNetworkInterfaceTypeIEEE80211 as String { return .wifi }
-            if type == kSCNetworkInterfaceTypeEthernet as String { return .ethernet }
-            return .other
+            return (
+                SCNetworkInterfaceGetLocalizedDisplayName(interface) as String?,
+                Self.transport(forInterfaceType: SCNetworkInterfaceGetInterfaceType(interface) as String?)
+            )
         }
-        return nil
+        return (nil, nil)
+    }
+
+    static func transport(forInterfaceType type: String?) -> TransportKind? {
+        guard let type else { return nil }
+        if type == kSCNetworkInterfaceTypeIEEE80211 as String { return .wifi }
+        if type == kSCNetworkInterfaceTypeEthernet as String { return .ethernet }
+        return .other
     }
 
     func localIPv4Address(for interfaceName: String) -> String? {
@@ -103,24 +122,29 @@ struct SystemNetworkReader: Sendable {
         defer { buffer.deallocate() }
         guard sysctl(&mib, u_int(mib.count), buffer, &length, nil, 0) == 0 else { return nil }
 
+        return Self.interfaceCounters(
+            in: UnsafeRawBufferPointer(start: buffer, count: length),
+            interfaceName: interfaceName,
+            nameAtIndex: Self.interfaceName(at:)
+        )
+    }
+
+    static func interfaceCounters(
+        in buffer: UnsafeRawBufferPointer,
+        interfaceName: String,
+        nameAtIndex: (UInt32) -> String?
+    ) -> InterfaceCounters? {
+        let length = buffer.count
+        guard let base = buffer.baseAddress else { return nil }
         var offset = 0
         while offset + MemoryLayout<if_msghdr>.size <= length {
-            let header = buffer.advanced(by: offset).assumingMemoryBound(to: if_msghdr.self).pointee
+            let header = base.loadUnaligned(fromByteOffset: offset, as: if_msghdr.self)
             let messageLength = Int(header.ifm_msglen)
             guard messageLength > 0, offset + messageLength <= length else { break }
 
             if header.ifm_type == UInt8(RTM_IFINFO2), messageLength >= MemoryLayout<if_msghdr2>.size {
-                let extended = buffer.advanced(by: offset).assumingMemoryBound(to: if_msghdr2.self).pointee
-                var nameBuffer = [CChar](repeating: 0, count: Int(IFNAMSIZ))
-                if if_indextoname(UInt32(extended.ifm_index), &nameBuffer) != nil {
-                    let decodedName = String(
-                        decoding: nameBuffer.prefix { $0 != 0 }.map { UInt8(bitPattern: $0) },
-                        as: UTF8.self
-                    )
-                    guard decodedName == interfaceName else {
-                        offset += messageLength
-                        continue
-                    }
+                let extended = base.loadUnaligned(fromByteOffset: offset, as: if_msghdr2.self)
+                if nameAtIndex(UInt32(extended.ifm_index)) == interfaceName {
                     return InterfaceCounters(
                         receivedBytes: extended.ifm_data.ifi_ibytes,
                         sentBytes: extended.ifm_data.ifi_obytes
@@ -130,6 +154,15 @@ struct SystemNetworkReader: Sendable {
             offset += messageLength
         }
         return nil
+    }
+
+    private static func interfaceName(at index: UInt32) -> String? {
+        var nameBuffer = [CChar](repeating: 0, count: Int(IFNAMSIZ))
+        guard if_indextoname(index, &nameBuffer) != nil else { return nil }
+        return String(
+            decoding: nameBuffer.prefix { $0 != 0 }.map { UInt8(bitPattern: $0) },
+            as: UTF8.self
+        )
     }
 
     func wifiReading() -> WiFiReading {
@@ -227,13 +260,12 @@ struct SystemNetworkReader: Sendable {
         .sorted { $0.interfaceName.localizedStandardCompare($1.interfaceName) == .orderedAscending }
     }
 
-    func globalProtectTunnel() -> String? {
-        guard globalProtectServiceIsRunning() else { return nil }
-
+    func activeIPv4TunnelNames() -> [String] {
         var pointer: UnsafeMutablePointer<ifaddrs>?
-        guard getifaddrs(&pointer) == 0, let first = pointer else { return nil }
+        guard getifaddrs(&pointer) == 0, let first = pointer else { return [] }
         defer { freeifaddrs(pointer) }
 
+        var names: [String] = []
         for item in sequence(first: first, next: { $0.pointee.ifa_next }) {
             let name = String(cString: item.pointee.ifa_name)
             guard name.hasPrefix("utun"),
@@ -241,11 +273,16 @@ struct SystemNetworkReader: Sendable {
                   Self.isActiveIPv4Tunnel(
                       flags: item.pointee.ifa_flags,
                       addressFamily: address.pointee.sa_family
-                  )
+                  ),
+                  !names.contains(name)
             else { continue }
-            return name
+            names.append(name)
         }
-        return nil
+        return names
+    }
+
+    func globalProtectProcessIsRunning() -> Bool {
+        globalProtectServiceIsRunning()
     }
 
     static func isActiveIPv4Tunnel(flags: UInt32, addressFamily: UInt8) -> Bool {
@@ -313,8 +350,18 @@ struct SystemNetworkReader: Sendable {
         return (isActive, Self.ethernetLinkSpeed(forMediaWord: request.ifm_active))
     }
 
+    /// `IFM_X` from `net/if_media.h`. Swift does not import that macro.
+    static func extendedEthernetSubtype(_ value: Int32) -> Int32 {
+        let lowBits: Int32 = 0x1f
+        let highBits: Int32 = 0x1e0
+        return (value & lowBits) | ((value & highBits) << 11)
+    }
+
     static func ethernetLinkSpeed(forMediaWord mediaWord: Int32) -> UInt64? {
         let subtype = mediaWord & IFM_TMASK
+        if let extended = extendedSubtypeBitsPerSecond[subtype] {
+            return extended
+        }
         switch subtype {
         case IFM_10_T, IFM_10_2, IFM_10_5, IFM_10_STP, IFM_10_FL:
             return 10_000_000
@@ -336,4 +383,54 @@ struct SystemNetworkReader: Sendable {
             return nil
         }
     }
+
+    /// Arguments are the `IFM_X(n)` values from `net/if_media.h`.
+    private static let extendedSubtypeBitsPerSecond: [Int32: UInt64] = {
+        let entries: [(Int32, UInt64)] = [
+            (52, 100_000_000), // IFM_100_T
+            (62, 100_000_000), // IFM_100_SGMII
+            (41, 1_000_000_000), // IFM_1000_SGMII
+            (32, 2_500_000_000), // IFM_2500_SX
+            (36, 2_500_000_000), // IFM_2500_KX
+            (63, 2_500_000_000), // IFM_2500_X
+            (64, 5_000_000_000), // IFM_5000_KR
+            (69, 5_000_000_000), // IFM_5000_KR_S
+            (70, 5_000_000_000), // IFM_5000_KR1
+            (33, 10_000_000_000), // IFM_10G_TWINAX
+            (34, 10_000_000_000), // IFM_10G_TWINAX_LONG
+            (35, 10_000_000_000), // IFM_10G_LRM
+            (42, 10_000_000_000), // IFM_10G_SFI
+            (59, 10_000_000_000), // IFM_10G_AOC
+            (40, 25_000_000_000), // IFM_25G_PCIE
+            (53, 25_000_000_000), // IFM_25G_CR
+            (54, 25_000_000_000), // IFM_25G_KR
+            (55, 25_000_000_000), // IFM_25G_SR
+            (58, 25_000_000_000), // IFM_25G_LR
+            (60, 25_000_000_000), // IFM_25G_ACC
+            (61, 25_000_000_000), // IFM_25G_AOC
+            (65, 25_000_000_000), // IFM_25G_T
+            (66, 25_000_000_000), // IFM_25G_CR_S
+            (67, 25_000_000_000), // IFM_25G_CR1
+            (68, 25_000_000_000), // IFM_25G_KR_S
+            (71, 25_000_000_000), // IFM_25G_AUI
+            (86, 25_000_000_000), // IFM_25G_KR1
+            (37, 40_000_000_000), // IFM_40G_CR4
+            (38, 40_000_000_000), // IFM_40G_SR4
+            (43, 40_000_000_000), // IFM_40G_XLPPI
+            (44, 40_000_000_000), // IFM_40G_LR4
+            (45, 40_000_000_000), // IFM_40G_KR4
+            (72, 40_000_000_000), // IFM_40G_XLAUI
+            (73, 40_000_000_000), // IFM_40G_XLAUI_AC
+            (74, 40_000_000_000), // IFM_40G_ER4
+            (47, 100_000_000_000), // IFM_100G_CR4
+            (48, 100_000_000_000), // IFM_100G_SR4
+            (49, 100_000_000_000), // IFM_100G_KR4
+            (50, 100_000_000_000), // IFM_100G_LR4
+        ]
+        var speeds: [Int32: UInt64] = [:]
+        for (rawSubtype, bitsPerSecond) in entries {
+            speeds[extendedEthernetSubtype(rawSubtype)] = bitsPerSecond
+        }
+        return speeds
+    }()
 }

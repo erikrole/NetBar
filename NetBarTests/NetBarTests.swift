@@ -1,15 +1,22 @@
 import Darwin
 import Foundation
+import SystemConfiguration
 import XCTest
 @testable import NetBar
 
 final class NetBarTests: XCTestCase {
     func testBackgroundMonitoringUsesLowFrequencyCadence() {
         XCTAssertEqual(MonitoringCadence.throughputSampleInterval, 1)
+        XCTAssertEqual(MonitoringCadence.throughputMinimumInterval, 0.5)
+        XCTAssertEqual(MonitoringCadence.throughputMaximumInterval, 5)
+        XCTAssertEqual(MonitoringCadence.throughputTimerToleranceInteractive, 0.1)
+        XCTAssertEqual(MonitoringCadence.throughputTimerToleranceIdle, 0.25)
         XCTAssertEqual(MonitoringCadence.interactiveMetadataInterval, 10)
+        XCTAssertEqual(MonitoringCadence.interactiveTimerTolerance, 1)
         XCTAssertGreaterThanOrEqual(MonitoringCadence.backgroundRefreshInterval, 30)
         XCTAssertGreaterThanOrEqual(MonitoringCadence.internetProbeInterval, 30)
         XCTAssertGreaterThanOrEqual(MonitoringCadence.backgroundTimerTolerance, 5)
+        XCTAssertGreaterThanOrEqual(MonitoringCadence.globalProtectProcessInterval, 60)
     }
 
     func testInternetStateSeparatesRouteFromInternetResponse() {
@@ -299,5 +306,269 @@ final class NetBarTests: XCTestCase {
     func testThroughputGraphScaleIncludesHeadroom() {
         XCTAssertEqual(ThroughputGraphMetrics.scaleMaximum(for: []), 1)
         XCTAssertEqual(ThroughputGraphMetrics.scaleMaximum(for: [10, 20]), 22, accuracy: 0.0001)
+        XCTAssertEqual(ThroughputGraphMetrics.normalizedX(index: 0, sampleCount: 60), 0)
+        XCTAssertEqual(ThroughputGraphMetrics.normalizedX(index: 59, sampleCount: 60), 1)
+        XCTAssertEqual(
+            ThroughputGraphMetrics.normalizedX(index: -4, sampleCount: 10),
+            ThroughputGraphMetrics.normalizedX(index: 0, sampleCount: 10)
+        )
+        XCTAssertEqual(ThroughputGraphMetrics.normalizedX(index: 80, sampleCount: 60), 1)
+        XCTAssertEqual(ThroughputGraphMetrics.normalizedX(index: 0, sampleCount: 0), 1)
+    }
+
+    func testThroughputSamplerSkipsSpikesAndCounterRewinds() {
+        let previous = InterfaceCounters(receivedBytes: 1_000, sentBytes: 2_000)
+        let current = InterfaceCounters(receivedBytes: 4_000, sentBytes: 2_500)
+
+        XCTAssertEqual(
+            ThroughputSampler.action(previous: previous, current: current, interval: 1),
+            .record(download: 3_000, upload: 500)
+        )
+        XCTAssertEqual(
+            ThroughputSampler.action(previous: previous, current: current, interval: 2),
+            .record(download: 1_500, upload: 250)
+        )
+        XCTAssertEqual(
+            ThroughputSampler.action(previous: previous, current: current, interval: 0.2),
+            .keepBaseline
+        )
+        XCTAssertEqual(
+            ThroughputSampler.action(previous: previous, current: current, interval: 0),
+            .resetBaseline
+        )
+        XCTAssertEqual(
+            ThroughputSampler.action(previous: previous, current: current, interval: -1),
+            .resetBaseline
+        )
+        XCTAssertEqual(
+            ThroughputSampler.action(previous: previous, current: current, interval: 8),
+            .resetBaseline
+        )
+        XCTAssertEqual(
+            ThroughputSampler.action(
+                previous: previous,
+                current: InterfaceCounters(receivedBytes: 100, sentBytes: 9_000),
+                interval: 1
+            ),
+            .resetBaseline
+        )
+    }
+
+    func testThroughputHistoryKeepsTheNewestMinute() {
+        let history = ThroughputHistory.appending(60, to: Array(0..<60).map(Double.init))
+        XCTAssertEqual(history.count, 60)
+        XCTAssertEqual(history.first, 1)
+        XCTAssertEqual(history.last, 60)
+        XCTAssertEqual(ThroughputHistory.appending(5, to: []), [5])
+    }
+
+    func testFriendlyEthernetOmitsUnknownOrZeroSpeed() {
+        var reading = NetworkReading()
+        reading.state = .online
+        reading.transport = .ethernet
+        XCTAssertEqual(reading.friendlyTitle, "Ethernet")
+        reading.ethernetLinkSpeedBitsPerSecond = 0
+        XCTAssertEqual(reading.friendlyTitle, "Ethernet")
+    }
+
+    func testRouteResolverKeepsPhysicalPrimaryAndSkipsTunnels() {
+        let services = [
+            RouteServiceCandidate(interfaceName: "utun4", routerAddress: "10.0.0.1", hasLocalAddress: true),
+            RouteServiceCandidate(interfaceName: "en0", routerAddress: "192.168.1.1", hasLocalAddress: false),
+            RouteServiceCandidate(interfaceName: "en7", routerAddress: "10.1.1.1", hasLocalAddress: true),
+        ]
+
+        XCTAssertEqual(
+            ActiveRouteResolver.resolve(
+                primaryInterface: "en0",
+                primaryRouter: "192.168.1.1",
+                services: services
+            ),
+            ActiveRoute(interfaceName: "en0", routerAddress: "192.168.1.1")
+        )
+        XCTAssertEqual(
+            ActiveRouteResolver.resolve(
+                primaryInterface: "utun3",
+                primaryRouter: "10.8.0.1",
+                services: services
+            ),
+            ActiveRoute(interfaceName: "en7", routerAddress: "10.1.1.1")
+        )
+        XCTAssertEqual(
+            ActiveRouteResolver.resolve(
+                primaryInterface: "ipsec0",
+                primaryRouter: "172.16.0.1",
+                services: [
+                    RouteServiceCandidate(interfaceName: "en0", routerAddress: "192.168.0.1", hasLocalAddress: true)
+                ]
+            ),
+            ActiveRoute(interfaceName: "en0", routerAddress: "192.168.0.1")
+        )
+        XCTAssertEqual(
+            ActiveRouteResolver.resolve(
+                primaryInterface: "utun3",
+                primaryRouter: "10.8.0.1",
+                services: [
+                    RouteServiceCandidate(interfaceName: "en0", routerAddress: "192.168.1.1", hasLocalAddress: false)
+                ]
+            ),
+            ActiveRoute(interfaceName: "utun3", routerAddress: "10.8.0.1")
+        )
+        XCTAssertEqual(
+            ActiveRouteResolver.resolve(primaryInterface: nil, primaryRouter: nil, services: services),
+            ActiveRoute()
+        )
+        XCTAssertTrue(ActiveRouteResolver.isTunnelInterface("utun12"))
+        XCTAssertTrue(ActiveRouteResolver.isTunnelInterface("ipsec0"))
+        XCTAssertTrue(ActiveRouteResolver.isTunnelInterface("ppp0"))
+        XCTAssertTrue(ActiveRouteResolver.isTunnelInterface("tun0"))
+        XCTAssertFalse(ActiveRouteResolver.isTunnelInterface("en0"))
+        XCTAssertFalse(ActiveRouteResolver.isTunnelInterface("bridge0"))
+    }
+
+    func testInterfaceTypeParsing() {
+        XCTAssertEqual(
+            SystemNetworkReader.transport(forInterfaceType: kSCNetworkInterfaceTypeIEEE80211 as String),
+            .wifi
+        )
+        XCTAssertEqual(
+            SystemNetworkReader.transport(forInterfaceType: kSCNetworkInterfaceTypeEthernet as String),
+            .ethernet
+        )
+        XCTAssertEqual(SystemNetworkReader.transport(forInterfaceType: "Bridge"), .other)
+        XCTAssertNil(SystemNetworkReader.transport(forInterfaceType: nil))
+    }
+
+    func testEthernetMediaSpeedIgnoresOptionBitsAndExtendedSubtypes() {
+        XCTAssertEqual(SystemNetworkReader.extendedEthernetSubtype(33), 0x1_0001)
+        XCTAssertEqual(SystemNetworkReader.extendedEthernetSubtype(52), 0x1_0014)
+        XCTAssertEqual(SystemNetworkReader.extendedEthernetSubtype(65), 0x2_0001)
+        XCTAssertEqual(
+            SystemNetworkReader.ethernetLinkSpeed(forMediaWord: IFM_ETHER | IFM_FDX | IFM_FLOW | IFM_1000_T),
+            1_000_000_000
+        )
+        XCTAssertEqual(
+            SystemNetworkReader.ethernetLinkSpeed(
+                forMediaWord: IFM_ETHER | SystemNetworkReader.extendedEthernetSubtype(52)
+            ),
+            100_000_000
+        )
+        XCTAssertEqual(
+            SystemNetworkReader.ethernetLinkSpeed(
+                forMediaWord: IFM_ETHER | SystemNetworkReader.extendedEthernetSubtype(62)
+            ),
+            100_000_000
+        )
+        XCTAssertEqual(
+            SystemNetworkReader.ethernetLinkSpeed(
+                forMediaWord: IFM_ETHER | SystemNetworkReader.extendedEthernetSubtype(33)
+            ),
+            10_000_000_000
+        )
+        XCTAssertEqual(
+            SystemNetworkReader.ethernetLinkSpeed(
+                forMediaWord: IFM_ETHER | IFM_FDX | SystemNetworkReader.extendedEthernetSubtype(65)
+            ),
+            25_000_000_000
+        )
+        XCTAssertEqual(
+            SystemNetworkReader.ethernetLinkSpeed(
+                forMediaWord: IFM_ETHER | SystemNetworkReader.extendedEthernetSubtype(38)
+            ),
+            40_000_000_000
+        )
+        XCTAssertEqual(
+            SystemNetworkReader.ethernetLinkSpeed(
+                forMediaWord: IFM_ETHER | SystemNetworkReader.extendedEthernetSubtype(47)
+            ),
+            100_000_000_000
+        )
+        XCTAssertNil(SystemNetworkReader.ethernetLinkSpeed(forMediaWord: IFM_ETHER | IFM_AUTO))
+        XCTAssertNil(SystemNetworkReader.ethernetLinkSpeed(forMediaWord: IFM_ETHER | IFM_HPNA_1))
+        XCTAssertEqual(LinkSpeedFormatter.string(25_000_000_000), "25 Gbps")
+        XCTAssertEqual(LinkSpeedFormatter.string(40_000_000_000), "40 Gbps")
+        XCTAssertEqual(LinkSpeedFormatter.string(100_000_000_000), "100 Gbps")
+    }
+
+    func testInterfaceCounterParsingSkipsUnrelatedMessages() {
+        let noise = routeMessage(if_msghdr()) { message in
+            message.ifm_type = UInt8(RTM_IFINFO)
+            message.ifm_index = 1
+        }
+        let info = routeMessage(if_msghdr2()) { message in
+            message.ifm_type = UInt8(RTM_IFINFO2)
+            message.ifm_index = 7
+            message.ifm_data.ifi_ibytes = 4_096
+            message.ifm_data.ifi_obytes = 512
+        }
+        var buffer = Data()
+        buffer.append(noise)
+        buffer.append(info)
+
+        let matched = buffer.withUnsafeBytes { raw in
+            SystemNetworkReader.interfaceCounters(
+                in: raw,
+                interfaceName: "en0",
+                nameAtIndex: { $0 == 7 ? "en0" : "en1" }
+            )
+        }
+        XCTAssertEqual(matched, InterfaceCounters(receivedBytes: 4_096, sentBytes: 512))
+
+        let mismatch = buffer.withUnsafeBytes { raw in
+            SystemNetworkReader.interfaceCounters(
+                in: raw,
+                interfaceName: "en0",
+                nameAtIndex: { _ in "en1" }
+            )
+        }
+        XCTAssertNil(mismatch)
+    }
+
+    func testInterfaceCounterParsingStopsOnTruncatedOrEmptyMessages() {
+        var empty = if_msghdr2()
+        empty.ifm_msglen = 0
+        empty.ifm_type = UInt8(RTM_IFINFO2)
+        let emptyCounters = withUnsafeBytes(of: empty) { raw in
+            SystemNetworkReader.interfaceCounters(
+                in: raw,
+                interfaceName: "en0",
+                nameAtIndex: { _ in "en0" }
+            )
+        }
+        XCTAssertNil(emptyCounters)
+
+        var truncated = if_msghdr()
+        truncated.ifm_msglen = 4_096
+        truncated.ifm_type = UInt8(RTM_IFINFO2)
+        let truncatedCounters = withUnsafeBytes(of: truncated) { raw in
+            SystemNetworkReader.interfaceCounters(
+                in: raw,
+                interfaceName: "en0",
+                nameAtIndex: { _ in "en0" }
+            )
+        }
+        XCTAssertNil(truncatedCounters)
+        XCTAssertNil(SystemNetworkReader.interfaceCounters(
+            in: UnsafeRawBufferPointer(start: nil, count: 0),
+            interfaceName: "en0",
+            nameAtIndex: { _ in "en0" }
+        ))
+    }
+
+    private func routeMessage<T>(_ initial: T, configure: (inout T) -> Void) -> Data {
+        var message = initial
+        configure(&message)
+        let size = MemoryLayout<T>.size
+        var bytes = Data(count: size)
+        bytes.withUnsafeMutableBytes { destination in
+            withUnsafeBytes(of: &message) { source in
+                destination.copyBytes(from: source.prefix(size))
+            }
+        }
+        var length = UInt16(size)
+        withUnsafeBytes(of: &length) { lengthBytes in
+            bytes.replaceSubrange(0..<MemoryLayout<UInt16>.size, with: lengthBytes)
+        }
+        return bytes
     }
 }
