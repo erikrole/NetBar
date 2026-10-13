@@ -43,10 +43,16 @@ enum ProbeResult: Sendable {
 
 enum MonitoringCadence {
     static let throughputSampleInterval: TimeInterval = 1
+    static let throughputMinimumInterval: TimeInterval = 0.5
+    static let throughputMaximumInterval: TimeInterval = 5
+    static let throughputTimerToleranceInteractive: TimeInterval = 0.1
+    static let throughputTimerToleranceIdle: TimeInterval = 0.25
     static let interactiveMetadataInterval: TimeInterval = 10
+    static let interactiveTimerTolerance: TimeInterval = 1
     static let backgroundRefreshInterval: TimeInterval = 30
     static let backgroundTimerTolerance: TimeInterval = 5
     static let internetProbeInterval: TimeInterval = 30
+    static let globalProtectProcessInterval: TimeInterval = 60
 }
 
 enum TransportKind: String, Sendable {
@@ -114,7 +120,7 @@ struct EthernetConnection: Equatable, Sendable {
     let localAddress: String?
 }
 
-struct NetworkReading: Sendable {
+struct NetworkReading: Equatable, Sendable {
     var state: InternetState = .checking
     var transport: TransportKind = .none
     var interfaceName: String?
@@ -123,10 +129,6 @@ struct NetworkReading: Sendable {
     var routerAddress: String?
     var ethernetLinkSpeedBitsPerSecond: UInt64?
     var ethernetConnections: [EthernetConnection] = []
-    var downloadBytesPerSecond: Double = 0
-    var uploadBytesPerSecond: Double = 0
-    var downloadHistory: [Double] = []
-    var uploadHistory: [Double] = []
     var globalProtectConnected = false
     var vpnInterfaceName: String?
     var wifi = WiFiReading(isPowered: false)
@@ -140,7 +142,9 @@ struct NetworkReading: Sendable {
             }
             return ssid
         case .ethernet:
-            guard let ethernetLinkSpeedBitsPerSecond else { return "Ethernet" }
+            guard let ethernetLinkSpeedBitsPerSecond, ethernetLinkSpeedBitsPerSecond > 0 else {
+                return "Ethernet"
+            }
             return "Ethernet · \(LinkSpeedFormatter.string(ethernetLinkSpeedBitsPerSecond))"
         case .other:
             return interfaceDisplayName ?? "Network"
@@ -211,6 +215,43 @@ struct InterfaceCounters: Equatable, Sendable {
     let sentBytes: UInt64
 }
 
+struct ThroughputSnapshot: Equatable, Sendable {
+    var downloadBytesPerSecond: Double = 0
+    var uploadBytesPerSecond: Double = 0
+    var downloadHistory: [Double] = []
+    var uploadHistory: [Double] = []
+}
+
+struct RouteServiceCandidate: Equatable, Sendable {
+    var interfaceName: String
+    var routerAddress: String?
+    var hasLocalAddress: Bool
+}
+
+enum ActiveRouteResolver {
+    static func resolve(
+        primaryInterface: String?,
+        primaryRouter: String?,
+        services: [RouteServiceCandidate] = []
+    ) -> ActiveRoute {
+        let primary = ActiveRoute(interfaceName: primaryInterface, routerAddress: primaryRouter)
+        guard let primaryInterface, isTunnelInterface(primaryInterface) else { return primary }
+        if let physical = services.first(where: { service in
+            service.hasLocalAddress && !isTunnelInterface(service.interfaceName)
+        }) {
+            return ActiveRoute(
+                interfaceName: physical.interfaceName,
+                routerAddress: physical.routerAddress
+            )
+        }
+        return primary
+    }
+
+    static func isTunnelInterface(_ name: String) -> Bool {
+        ["utun", "ipsec", "ppp", "gif", "stf", "tun"].contains { name.hasPrefix($0) }
+    }
+}
+
 struct ThroughputSessionTracker: Sendable {
     private(set) var interfaceName: String?
     private(set) var transport: TransportKind = .none
@@ -268,6 +309,55 @@ enum ThroughputCalculator {
         guard interval > 0 else { return 0 }
         guard current >= previous else { return 0 }
         return Double(current - previous) / interval
+    }
+}
+
+enum ThroughputSampler {
+    enum Action: Equatable {
+        case record(download: Double, upload: Double)
+        case keepBaseline
+        case resetBaseline
+    }
+
+    static func action(
+        previous: InterfaceCounters,
+        current: InterfaceCounters,
+        interval: TimeInterval
+    ) -> Action {
+        if interval <= 0 || interval > MonitoringCadence.throughputMaximumInterval {
+            return .resetBaseline
+        }
+        if interval < MonitoringCadence.throughputMinimumInterval {
+            return .keepBaseline
+        }
+        guard current.receivedBytes >= previous.receivedBytes,
+              current.sentBytes >= previous.sentBytes
+        else { return .resetBaseline }
+
+        return .record(
+            download: ThroughputCalculator.rate(
+                previous: previous.receivedBytes,
+                current: current.receivedBytes,
+                interval: interval
+            ),
+            upload: ThroughputCalculator.rate(
+                previous: previous.sentBytes,
+                current: current.sentBytes,
+                interval: interval
+            )
+        )
+    }
+}
+
+enum ThroughputHistory {
+    static func appending(_ value: Double, to history: [Double]) -> [Double] {
+        var updated = history
+        updated.append(value)
+        let overflow = updated.count - ThroughputGraphMetrics.sampleCapacity
+        if overflow > 0 {
+            updated.removeFirst(overflow)
+        }
+        return updated
     }
 }
 

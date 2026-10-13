@@ -18,6 +18,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     private let popover = NSPopover()
     private var statusItem: NSStatusItem?
     private var outsideClickMonitor: Any?
+    private var statusSymbols: [TransportKind: NSImage] = [:]
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         configurePopover()
@@ -103,6 +104,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
     }
 
     private func statusSymbol(for transport: TransportKind) -> NSImage? {
+        if let cached = statusSymbols[transport], let copy = cached.copy() as? NSImage {
+            copy.isTemplate = true
+            return copy
+        }
         guard let image = NSImage(
             systemSymbolName: transport.statusSymbolName,
             accessibilityDescription: nil
@@ -110,7 +115,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
             return nil
         }
         image.isTemplate = true
-        return image
+        statusSymbols[transport] = image
+        guard let copy = image.copy() as? NSImage else { return image }
+        copy.isTemplate = true
+        return copy
     }
 
     private func statusDotTitle(for state: InternetState) -> NSAttributedString {

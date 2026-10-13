@@ -9,14 +9,14 @@ struct NetBarView: View {
 
     var body: some View {
         VStack(spacing: 0) {
-            header
+            StatusHeader(monitor: monitor)
             Divider()
             ScrollView {
                 VStack(spacing: 12) {
-                    throughput
-                    connection
-                    vpn
-                    wifi
+                    ThroughputSection(monitor: monitor)
+                    ConnectionSection(monitor: monitor)
+                    VPNSection(monitor: monitor, launchError: $globalProtectLaunchError)
+                    WiFiSection(monitor: monitor)
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
@@ -26,119 +26,6 @@ struct NetBarView: View {
         }
         .frame(width: 360, height: 620)
         .background(.regularMaterial)
-    }
-
-    private var header: some View {
-        HStack(spacing: 11) {
-            HStack(spacing: 11) {
-                StatusBadge(state: monitor.reading.state, transport: monitor.reading.transport)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(monitor.reading.friendlyTitle)
-                        .font(.headline)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                    Text(monitor.reading.statusSubtitle)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                }
-            }
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel(monitor.reading.accessibilitySummary)
-
-            Spacer()
-
-            Button {
-                monitor.checkNow()
-            } label: {
-                Image(systemName: "arrow.clockwise")
-            }
-            .buttonStyle(.borderless)
-            .frame(width: 24, height: 24)
-            .help("Check internet now")
-            .accessibilityLabel("Check internet now")
-        }
-        .padding(16)
-    }
-
-    private var throughput: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            sectionTitle("Live throughput")
-            ThroughputCard(
-                downloadValue: monitor.reading.downloadBytesPerSecond,
-                uploadValue: monitor.reading.uploadBytesPerSecond,
-                downloadHistory: monitor.reading.downloadHistory,
-                uploadHistory: monitor.reading.uploadHistory
-            )
-        }
-    }
-
-    private var connection: some View {
-        InfoSection(title: "Connection", symbol: monitor.reading.transport.symbolName) {
-            InfoRow(label: "Router", value: monitor.reading.routerAddress ?? "Unavailable")
-            InfoRow(label: "Local address", value: monitor.reading.localAddress ?? "Unavailable")
-            if let ethernet = monitor.reading.inactiveEthernetConnection {
-                EthernetNotActiveNotice(connection: ethernet)
-            }
-        }
-    }
-
-    private var vpn: some View {
-        InfoSection(title: "GlobalProtect", symbol: "lock.shield") {
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Text("VPN")
-                    .foregroundStyle(.secondary)
-                Spacer(minLength: 12)
-                Text(monitor.reading.globalProtectConnected ? "Connected" : "Disconnected")
-                    .foregroundStyle(monitor.reading.globalProtectConnected ? .green : .secondary)
-                Button("Open GlobalProtect…") {
-                    openGlobalProtect()
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .help("Open GlobalProtect with your saved portal ready")
-                .accessibilityIdentifier("GlobalProtectConnectionButton")
-            }
-            .font(.callout)
-
-            if let globalProtectLaunchError {
-                Label(globalProtectLaunchError, systemImage: "exclamationmark.triangle.fill")
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .accessibilityIdentifier("GlobalProtectLaunchError")
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var wifi: some View {
-        InfoSection(title: "Wi-Fi", symbol: "wifi") {
-            if !monitor.reading.wifi.isPowered {
-                InfoRow(label: "Radio", value: "Off")
-            } else if !monitor.reading.wifi.isAssociated {
-                InfoRow(label: "Network", value: "Not connected", valueColor: .secondary)
-            } else {
-                InfoRow(label: "Network", value: monitor.reading.wifi.ssid ?? "Unavailable")
-                if monitor.reading.transport != .wifi {
-                    InfoRow(label: "Usage", value: "Connected, not active", valueColor: .secondary)
-                }
-                if let rssi = monitor.reading.wifi.rssi {
-                    InfoRow(label: "Signal", value: "\(rssi) dBm · \(monitor.reading.wifi.quality ?? "Unknown")")
-                }
-                if let noise = monitor.reading.wifi.noise, let snr = monitor.reading.wifi.snr {
-                    InfoRow(label: "Noise / SNR", value: "\(noise) dBm / \(snr) dB")
-                }
-                if let transmitRate = monitor.reading.wifi.transmitRate {
-                    InfoRow(label: "Transmit rate", value: String(format: "%.0f Mbps", transmitRate))
-                }
-                if let channel = monitor.reading.wifi.channelDescription {
-                    InfoRow(label: "Channel", value: channel)
-                }
-
-            }
-        }
     }
 
     private var footer: some View {
@@ -202,26 +89,126 @@ struct NetBarView: View {
         .padding(.vertical, 12)
     }
 
-    private func sectionTitle(_ title: String) -> some View {
-        Text(title)
-            .font(.caption.weight(.semibold))
-            .foregroundStyle(.secondary)
-    }
-
     private func openNetworkSettings() {
         guard let url = URL(string: "x-apple.systempreferences:com.apple.Network-Settings.extension") else { return }
         NSWorkspace.shared.open(url)
+    }
+}
+
+private struct StatusHeader: View {
+    let monitor: NetworkMonitor
+
+    var body: some View {
+        HStack(spacing: 11) {
+            HStack(spacing: 11) {
+                StatusBadge(state: monitor.reading.state, transport: monitor.reading.transport)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(monitor.reading.friendlyTitle)
+                        .font(.headline)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    Text(monitor.reading.statusSubtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(monitor.reading.accessibilitySummary)
+
+            Spacer()
+
+            Button {
+                monitor.checkNow()
+            } label: {
+                Image(systemName: "arrow.clockwise")
+            }
+            .buttonStyle(.borderless)
+            .frame(width: 24, height: 24)
+            .help("Check internet now")
+            .accessibilityLabel("Check internet now")
+        }
+        .padding(16)
+    }
+}
+
+private struct ThroughputSection: View {
+    let monitor: NetworkMonitor
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Live throughput")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.secondary)
+            ThroughputCard(
+                downloadValue: monitor.throughput.downloadBytesPerSecond,
+                uploadValue: monitor.throughput.uploadBytesPerSecond,
+                downloadHistory: monitor.throughput.downloadHistory,
+                uploadHistory: monitor.throughput.uploadHistory
+            )
+        }
+        .transaction { transaction in
+            transaction.animation = nil
+        }
+    }
+}
+
+private struct ConnectionSection: View {
+    let monitor: NetworkMonitor
+
+    var body: some View {
+        InfoSection(title: "Connection", symbol: monitor.reading.transport.symbolName) {
+            InfoRow(label: "Router", value: monitor.reading.routerAddress ?? "Unavailable")
+            InfoRow(label: "Local address", value: monitor.reading.localAddress ?? "Unavailable")
+            if let ethernet = monitor.reading.inactiveEthernetConnection {
+                EthernetNotActiveNotice(connection: ethernet)
+            }
+        }
+    }
+}
+
+private struct VPNSection: View {
+    let monitor: NetworkMonitor
+    @Binding var launchError: String?
+
+    var body: some View {
+        InfoSection(title: "GlobalProtect", symbol: "lock.shield") {
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Text("VPN")
+                    .foregroundStyle(.secondary)
+                Spacer(minLength: 12)
+                Text(monitor.reading.globalProtectConnected ? "Connected" : "Disconnected")
+                    .foregroundStyle(monitor.reading.globalProtectConnected ? .green : .secondary)
+                Button("Open GlobalProtect…") {
+                    openGlobalProtect()
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .help("Open GlobalProtect with your saved portal ready")
+                .accessibilityIdentifier("GlobalProtectConnectionButton")
+            }
+            .font(.callout)
+
+            if let launchError {
+                Label(launchError, systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
+                    .foregroundStyle(.red)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("GlobalProtectLaunchError")
+            }
+        }
     }
 
     private func openGlobalProtect() {
         guard let url = NSWorkspace.shared.urlForApplication(
             withBundleIdentifier: "com.paloaltonetworks.GlobalProtect.client"
         ) else {
-            globalProtectLaunchError = "GlobalProtect is not installed."
+            launchError = "GlobalProtect is not installed."
             return
         }
 
-        globalProtectLaunchError = nil
+        launchError = nil
         Task { @MainActor in
             let configuration = NSWorkspace.OpenConfiguration()
             configuration.activates = true
@@ -231,7 +218,38 @@ struct NetBarView: View {
                     configuration: configuration
                 )
             } catch {
-                globalProtectLaunchError = error.localizedDescription
+                launchError = error.localizedDescription
+            }
+        }
+    }
+}
+
+private struct WiFiSection: View {
+    let monitor: NetworkMonitor
+
+    var body: some View {
+        InfoSection(title: "Wi-Fi", symbol: "wifi") {
+            if !monitor.reading.wifi.isPowered {
+                InfoRow(label: "Radio", value: "Off")
+            } else if !monitor.reading.wifi.isAssociated {
+                InfoRow(label: "Network", value: "Not connected", valueColor: .secondary)
+            } else {
+                InfoRow(label: "Network", value: monitor.reading.wifi.ssid ?? "Unavailable")
+                if monitor.reading.transport != .wifi {
+                    InfoRow(label: "Usage", value: "Connected, not active", valueColor: .secondary)
+                }
+                if let rssi = monitor.reading.wifi.rssi {
+                    InfoRow(label: "Signal", value: "\(rssi) dBm · \(monitor.reading.wifi.quality ?? "Unknown")")
+                }
+                if let noise = monitor.reading.wifi.noise, let snr = monitor.reading.wifi.snr {
+                    InfoRow(label: "Noise / SNR", value: "\(noise) dBm / \(snr) dB")
+                }
+                if let transmitRate = monitor.reading.wifi.transmitRate {
+                    InfoRow(label: "Transmit rate", value: String(format: "%.0f Mbps", transmitRate))
+                }
+                if let channel = monitor.reading.wifi.channelDescription {
+                    InfoRow(label: "Channel", value: channel)
+                }
             }
         }
     }
@@ -342,7 +360,13 @@ private struct ThroughputCard: View {
             .foregroundStyle(.tertiary)
         }
         .padding(10)
-        .background(.quaternary.opacity(0.64), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 12, style: .continuous)
+                .strokeBorder(Color.primary.opacity(0.07), lineWidth: 0.5)
+        }
+        .animation(nil, value: downloadHistory)
+        .animation(nil, value: uploadHistory)
     }
 }
 
@@ -358,7 +382,7 @@ private struct TrafficSummary: View {
                 .font(.caption2.weight(.medium))
                 .foregroundStyle(color)
             Text(ByteRateFormatter.string(value))
-                .font(.system(.body, design: .rounded, weight: .semibold))
+                .font(.body.weight(.semibold))
                 .monospacedDigit()
         }
         .frame(maxWidth: .infinity, alignment: .leading)

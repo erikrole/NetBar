@@ -6,6 +6,7 @@ import Observation
 @Observable
 final class NetworkMonitor {
     private(set) var reading = NetworkReading()
+    private(set) var throughput = ThroughputSnapshot()
 
     private let reader = SystemNetworkReader()
     private let pathMonitor = NWPathMonitor()
@@ -22,6 +23,9 @@ final class NetworkMonitor {
     private var previousCounters: InterfaceCounters?
     private var previousSampleDate: Date?
     private var throughputSession = ThroughputSessionTracker()
+    private var cachedTunnelNames: [String] = []
+    private var cachedGlobalProtectRunning = false
+    private var globalProtectProcessCheck = Date.distantPast
     private var probeInFlight = false
     private var lastProbeDate = Date.distantPast
     private var probeGeneration = 0
@@ -53,7 +57,6 @@ final class NetworkMonitor {
         }
 
         refreshMetadata()
-        startThroughputTimer()
         startBackgroundTimer()
     }
 
@@ -73,9 +76,10 @@ final class NetworkMonitor {
                 self.runProbeIfNeeded()
             }
         }
-        timer.tolerance = 0.1
+        timer.tolerance = MonitoringCadence.interactiveTimerTolerance
         RunLoop.main.add(timer, forMode: .common)
         interactiveTimer = timer
+        throughputTimer?.tolerance = MonitoringCadence.throughputTimerToleranceInteractive
     }
 
     func stopInteractiveMonitoring() {
@@ -83,6 +87,7 @@ final class NetworkMonitor {
         isInteractive = false
         interactiveTimer?.invalidate()
         interactiveTimer = nil
+        throughputTimer?.tolerance = MonitoringCadence.throughputTimerToleranceIdle
     }
 
     func checkNow() {
@@ -119,14 +124,15 @@ final class NetworkMonitor {
         let now = Date()
         let route = reader.activeRoute()
         let interfaceName = route.interfaceName
-        let tunnel = reader.globalProtectTunnel()
+        let tunnel = resolvedGlobalProtectTunnel(now: now)
         let ethernetConnections = reader.activeEthernetConnections()
         let wifi = reader.wifiReading()
         let localAddress = interfaceName.flatMap(reader.localIPv4Address)
+        let facts = interfaceName.map { reader.interfaceFacts(forBSDName: $0) }
         var updated = reading
         updated.state = InternetState.resolve(pathSatisfied: pathSatisfied, probe: probeResult)
-        updated.transport = if let interfaceName {
-            reader.transport(forBSDName: interfaceName) ?? pathTransport
+        updated.transport = if interfaceName != nil {
+            facts?.transport ?? pathTransport
         } else if pathSatisfied {
             pathTransport
         } else {
@@ -138,7 +144,7 @@ final class NetworkMonitor {
             currentSSID: wifi.isAssociated ? wifi.ssid : nil
         )
         updated.interfaceName = interfaceName
-        updated.interfaceDisplayName = interfaceName.flatMap(reader.displayName)
+        updated.interfaceDisplayName = facts?.displayName
         updated.localAddress = localAddress
         updated.routerAddress = route.routerAddress
         updated.ethernetConnections = ethernetConnections
@@ -148,7 +154,6 @@ final class NetworkMonitor {
         updated.globalProtectConnected = tunnel != nil
         updated.vpnInterfaceName = tunnel
         updated.wifi = wifi
-        updated.lastUpdated = now
         let probeRouteIdentity = ProbeRouteIdentity(
             pathSatisfied: pathSatisfied,
             transport: updated.transport,
@@ -161,7 +166,10 @@ final class NetworkMonitor {
         )
         let probeRouteChanged = self.probeRouteIdentity != probeRouteIdentity
         self.probeRouteIdentity = probeRouteIdentity
-        reading = updated
+        if updated != reading {
+            updated.lastUpdated = now
+            reading = updated
+        }
 
         if throughputSessionChanged {
             beginThroughputSession()
@@ -169,9 +177,33 @@ final class NetworkMonitor {
         if probeRouteChanged {
             invalidateProbeForRouteChange()
         }
+        syncThroughputTimer()
     }
 
-    private func startThroughputTimer() {
+    private func resolvedGlobalProtectTunnel(now: Date) -> String? {
+        let names = reader.activeIPv4TunnelNames()
+        guard let tunnel = names.first else {
+            cachedTunnelNames = []
+            cachedGlobalProtectRunning = false
+            return nil
+        }
+        let expired = now.timeIntervalSince(globalProtectProcessCheck)
+            >= MonitoringCadence.globalProtectProcessInterval
+        if names != cachedTunnelNames || expired {
+            cachedGlobalProtectRunning = reader.globalProtectProcessIsRunning()
+            cachedTunnelNames = names
+            globalProtectProcessCheck = now
+        }
+        return cachedGlobalProtectRunning ? tunnel : nil
+    }
+
+    private func syncThroughputTimer() {
+        guard reading.interfaceName != nil else {
+            throughputTimer?.invalidate()
+            throughputTimer = nil
+            return
+        }
+        guard throughputTimer == nil else { return }
         let timer = Timer(
             timeInterval: MonitoringCadence.throughputSampleInterval,
             repeats: true
@@ -180,7 +212,9 @@ final class NetworkMonitor {
                 self?.sampleThroughput()
             }
         }
-        timer.tolerance = 0.1
+        timer.tolerance = isInteractive
+            ? MonitoringCadence.throughputTimerToleranceInteractive
+            : MonitoringCadence.throughputTimerToleranceIdle
         RunLoop.main.add(timer, forMode: .common)
         throughputTimer = timer
     }
@@ -188,42 +222,44 @@ final class NetworkMonitor {
     private func beginThroughputSession() {
         let interfaceName = reading.interfaceName
         previousCounters = interfaceName.flatMap(reader.counters)
-        previousSampleDate = Date()
-        reading.downloadBytesPerSecond = 0
-        reading.uploadBytesPerSecond = 0
-        reading.downloadHistory = []
-        reading.uploadHistory = []
+        previousSampleDate = previousCounters == nil ? nil : Date()
+        throughput = ThroughputSnapshot()
     }
 
     private func sampleThroughput() {
-        let now = Date()
         guard let interfaceName = reading.interfaceName,
-              interfaceName == throughputSession.interfaceName,
-              let previousCounters,
-              let previousSampleDate,
-              let counters = reader.counters(for: interfaceName)
+              interfaceName == throughputSession.interfaceName
         else {
             beginThroughputSession()
+            syncThroughputTimer()
+            return
+        }
+        guard let counters = reader.counters(for: interfaceName) else { return }
+        let now = Date()
+        guard let previousCounters, let previousSampleDate else {
+            self.previousCounters = counters
+            self.previousSampleDate = now
             return
         }
 
-        let interval = now.timeIntervalSince(previousSampleDate)
-        let downloadRate = ThroughputCalculator.rate(
-            previous: previousCounters.receivedBytes,
-            current: counters.receivedBytes,
-            interval: interval
-        )
-        let uploadRate = ThroughputCalculator.rate(
-            previous: previousCounters.sentBytes,
-            current: counters.sentBytes,
-            interval: interval
-        )
-        self.previousCounters = counters
-        self.previousSampleDate = now
-        reading.downloadBytesPerSecond = downloadRate
-        reading.uploadBytesPerSecond = uploadRate
-        reading.downloadHistory = Self.appending(downloadRate, to: reading.downloadHistory)
-        reading.uploadHistory = Self.appending(uploadRate, to: reading.uploadHistory)
+        switch ThroughputSampler.action(
+            previous: previousCounters,
+            current: counters,
+            interval: now.timeIntervalSince(previousSampleDate)
+        ) {
+        case .keepBaseline:
+            return
+        case .resetBaseline:
+            self.previousCounters = counters
+            self.previousSampleDate = now
+        case let .record(download, upload):
+            self.previousCounters = counters
+            self.previousSampleDate = now
+            throughput.downloadBytesPerSecond = download
+            throughput.uploadBytesPerSecond = upload
+            throughput.downloadHistory = ThroughputHistory.appending(download, to: throughput.downloadHistory)
+            throughput.uploadHistory = ThroughputHistory.appending(upload, to: throughput.uploadHistory)
+        }
     }
 
     private func runProbeIfNeeded() {
@@ -271,10 +307,6 @@ final class NetworkMonitor {
         if path.usesInterfaceType(.wifi) { return .wifi }
         if path.status == .satisfied { return .other }
         return .none
-    }
-
-    private static func appending(_ value: Double, to history: [Double]) -> [Double] {
-        Array((history + [value]).suffix(ThroughputGraphMetrics.sampleCapacity))
     }
 
     private static var isRunningTests: Bool {

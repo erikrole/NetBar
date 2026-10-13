@@ -26,7 +26,7 @@ NetBar is an accessory app, so it appears only in the menu bar. Wi-Fi network na
 
 ## Background efficiency
 
-NetBar reacts immediately to macOS network-path changes. It samples the active interface's lightweight byte counters once per second to retain a rolling 60-second throughput history. With its popover closed, the more expensive interface, Wi-Fi, Ethernet, VPN, and internet-health refresh stays on a coalescible 30-second timer.
+NetBar reacts immediately to macOS network-path changes. While a route is up, it samples that interface's byte counters about once a second for a rolling 60-second history, and it pauses that timer when nothing is routed. The menu bar redraws only when the route or health changes. With the popover open, only the throughput graphs update on each sample. The heavier interface, Wi-Fi, Ethernet, and internet-health refresh stays on a coalescible 30-second timer while the popover is closed, and 10 seconds while it is open. GlobalProtect's process list check runs only when a tunnel interface is present.
 
 ## Test
 
