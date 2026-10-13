@@ -350,37 +350,87 @@ struct SystemNetworkReader: Sendable {
         return (isActive, Self.ethernetLinkSpeed(forMediaWord: request.ifm_active))
     }
 
+    /// `IFM_X` from `net/if_media.h`. Swift does not import that macro.
+    static func extendedEthernetSubtype(_ value: Int32) -> Int32 {
+        let lowBits: Int32 = 0x1f
+        let highBits: Int32 = 0x1e0
+        return (value & lowBits) | ((value & highBits) << 11)
+    }
+
     static func ethernetLinkSpeed(forMediaWord mediaWord: Int32) -> UInt64? {
-        switch mediaWord & IFM_TMASK {
+        let subtype = mediaWord & IFM_TMASK
+        if let extended = extendedSubtypeBitsPerSecond[subtype] {
+            return extended
+        }
+        switch subtype {
         case IFM_10_T, IFM_10_2, IFM_10_5, IFM_10_STP, IFM_10_FL:
             return 10_000_000
-        case IFM_100_TX, IFM_100_FX, IFM_100_T4, IFM_100_VG, IFM_100_T2,
-             IFM_100_T, IFM_100_SGMII:
+        case IFM_100_TX, IFM_100_FX, IFM_100_T4, IFM_100_VG, IFM_100_T2:
             return 100_000_000
         case IFM_1000_SX, IFM_1000_LX, IFM_1000_CX, IFM_1000_T,
-             IFM_1000_CX_SGMII, IFM_1000_KX, IFM_1000_SGMII:
+             IFM_1000_CX_SGMII, IFM_1000_KX:
             return 1_000_000_000
-        case IFM_2500_T, IFM_2500_SX, IFM_2500_KX, IFM_2500_X:
+        case IFM_2500_T:
             return 2_500_000_000
-        case IFM_5000_T, IFM_5000_KR, IFM_5000_KR_S, IFM_5000_KR1:
+        case IFM_5000_T:
             return 5_000_000_000
         case IFM_10G_SR, IFM_10G_LR, IFM_10G_CX4, IFM_10G_T,
-             IFM_10G_KX4, IFM_10G_KR, IFM_10G_CR1, IFM_10G_ER,
-             IFM_10G_TWINAX, IFM_10G_TWINAX_LONG, IFM_10G_LRM, IFM_10G_SFI, IFM_10G_AOC:
+             IFM_10G_KX4, IFM_10G_KR, IFM_10G_CR1, IFM_10G_ER:
             return 10_000_000_000
         case IFM_20G_KR2:
             return 20_000_000_000
-        case IFM_25G_PCIE, IFM_25G_CR, IFM_25G_KR, IFM_25G_SR, IFM_25G_LR,
-             IFM_25G_ACC, IFM_25G_AOC, IFM_25G_T, IFM_25G_CR_S, IFM_25G_CR1,
-             IFM_25G_KR_S, IFM_25G_AUI, IFM_25G_KR1:
-            return 25_000_000_000
-        case IFM_40G_CR4, IFM_40G_SR4, IFM_40G_XLPPI, IFM_40G_LR4, IFM_40G_KR4,
-             IFM_40G_XLAUI, IFM_40G_XLAUI_AC, IFM_40G_ER4:
-            return 40_000_000_000
-        case IFM_100G_CR4, IFM_100G_SR4, IFM_100G_KR4, IFM_100G_LR4:
-            return 100_000_000_000
         default:
             return nil
         }
     }
+
+    /// Arguments are the `IFM_X(n)` values from `net/if_media.h`.
+    private static let extendedSubtypeBitsPerSecond: [Int32: UInt64] = {
+        let entries: [(Int32, UInt64)] = [
+            (52, 100_000_000), // IFM_100_T
+            (62, 100_000_000), // IFM_100_SGMII
+            (41, 1_000_000_000), // IFM_1000_SGMII
+            (32, 2_500_000_000), // IFM_2500_SX
+            (36, 2_500_000_000), // IFM_2500_KX
+            (63, 2_500_000_000), // IFM_2500_X
+            (64, 5_000_000_000), // IFM_5000_KR
+            (69, 5_000_000_000), // IFM_5000_KR_S
+            (70, 5_000_000_000), // IFM_5000_KR1
+            (33, 10_000_000_000), // IFM_10G_TWINAX
+            (34, 10_000_000_000), // IFM_10G_TWINAX_LONG
+            (35, 10_000_000_000), // IFM_10G_LRM
+            (42, 10_000_000_000), // IFM_10G_SFI
+            (59, 10_000_000_000), // IFM_10G_AOC
+            (40, 25_000_000_000), // IFM_25G_PCIE
+            (53, 25_000_000_000), // IFM_25G_CR
+            (54, 25_000_000_000), // IFM_25G_KR
+            (55, 25_000_000_000), // IFM_25G_SR
+            (58, 25_000_000_000), // IFM_25G_LR
+            (60, 25_000_000_000), // IFM_25G_ACC
+            (61, 25_000_000_000), // IFM_25G_AOC
+            (65, 25_000_000_000), // IFM_25G_T
+            (66, 25_000_000_000), // IFM_25G_CR_S
+            (67, 25_000_000_000), // IFM_25G_CR1
+            (68, 25_000_000_000), // IFM_25G_KR_S
+            (71, 25_000_000_000), // IFM_25G_AUI
+            (86, 25_000_000_000), // IFM_25G_KR1
+            (37, 40_000_000_000), // IFM_40G_CR4
+            (38, 40_000_000_000), // IFM_40G_SR4
+            (43, 40_000_000_000), // IFM_40G_XLPPI
+            (44, 40_000_000_000), // IFM_40G_LR4
+            (45, 40_000_000_000), // IFM_40G_KR4
+            (72, 40_000_000_000), // IFM_40G_XLAUI
+            (73, 40_000_000_000), // IFM_40G_XLAUI_AC
+            (74, 40_000_000_000), // IFM_40G_ER4
+            (47, 100_000_000_000), // IFM_100G_CR4
+            (48, 100_000_000_000), // IFM_100G_SR4
+            (49, 100_000_000_000), // IFM_100G_KR4
+            (50, 100_000_000_000), // IFM_100G_LR4
+        ]
+        var speeds: [Int32: UInt64] = [:]
+        for (rawSubtype, bitsPerSecond) in entries {
+            speeds[extendedEthernetSubtype(rawSubtype)] = bitsPerSecond
+        }
+        return speeds
+    }()
 }

@@ -440,24 +440,47 @@ final class NetBarTests: XCTestCase {
     }
 
     func testEthernetMediaSpeedIgnoresOptionBitsAndExtendedSubtypes() {
+        XCTAssertEqual(SystemNetworkReader.extendedEthernetSubtype(33), 0x1_0001)
+        XCTAssertEqual(SystemNetworkReader.extendedEthernetSubtype(52), 0x1_0014)
+        XCTAssertEqual(SystemNetworkReader.extendedEthernetSubtype(65), 0x2_0001)
         XCTAssertEqual(
             SystemNetworkReader.ethernetLinkSpeed(forMediaWord: IFM_ETHER | IFM_FDX | IFM_FLOW | IFM_1000_T),
             1_000_000_000
         )
         XCTAssertEqual(
-            SystemNetworkReader.ethernetLinkSpeed(forMediaWord: IFM_ETHER | IFM_10G_TWINAX),
+            SystemNetworkReader.ethernetLinkSpeed(
+                forMediaWord: IFM_ETHER | SystemNetworkReader.extendedEthernetSubtype(52)
+            ),
+            100_000_000
+        )
+        XCTAssertEqual(
+            SystemNetworkReader.ethernetLinkSpeed(
+                forMediaWord: IFM_ETHER | SystemNetworkReader.extendedEthernetSubtype(62)
+            ),
+            100_000_000
+        )
+        XCTAssertEqual(
+            SystemNetworkReader.ethernetLinkSpeed(
+                forMediaWord: IFM_ETHER | SystemNetworkReader.extendedEthernetSubtype(33)
+            ),
             10_000_000_000
         )
         XCTAssertEqual(
-            SystemNetworkReader.ethernetLinkSpeed(forMediaWord: IFM_ETHER | IFM_FDX | IFM_25G_T),
+            SystemNetworkReader.ethernetLinkSpeed(
+                forMediaWord: IFM_ETHER | IFM_FDX | SystemNetworkReader.extendedEthernetSubtype(65)
+            ),
             25_000_000_000
         )
         XCTAssertEqual(
-            SystemNetworkReader.ethernetLinkSpeed(forMediaWord: IFM_ETHER | IFM_40G_SR4),
+            SystemNetworkReader.ethernetLinkSpeed(
+                forMediaWord: IFM_ETHER | SystemNetworkReader.extendedEthernetSubtype(38)
+            ),
             40_000_000_000
         )
         XCTAssertEqual(
-            SystemNetworkReader.ethernetLinkSpeed(forMediaWord: IFM_ETHER | IFM_100G_CR4),
+            SystemNetworkReader.ethernetLinkSpeed(
+                forMediaWord: IFM_ETHER | SystemNetworkReader.extendedEthernetSubtype(47)
+            ),
             100_000_000_000
         )
         XCTAssertNil(SystemNetworkReader.ethernetLinkSpeed(forMediaWord: IFM_ETHER | IFM_AUTO))
