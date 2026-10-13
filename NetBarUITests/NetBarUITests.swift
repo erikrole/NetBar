@@ -21,7 +21,7 @@ final class NetBarUITests: XCTestCase {
         XCTAssertFalse(statusItem.label.contains("↑"))
         XCTAssertFalse(statusItem.label.contains("en0"))
         statusItem.click()
-        XCTAssertTrue(app.staticTexts["LIVE THROUGHPUT"].waitForExistence(timeout: 3))
+        XCTAssertTrue(app.staticTexts["Live throughput"].waitForExistence(timeout: 3))
         XCTAssertTrue(app.staticTexts["Last 60 seconds"].exists)
         XCTAssertTrue(app.staticTexts["Connection"].exists)
         XCTAssertTrue(app.staticTexts["Router"].exists)
@@ -30,7 +30,9 @@ final class NetBarUITests: XCTestCase {
         XCTAssertTrue(app.descendants(matching: .any)["GlobalProtectConnectionButton"].exists)
         XCTAssertTrue(app.staticTexts["Wi-Fi"].exists)
         XCTAssertTrue(app.staticTexts["NetBar Test Wi-Fi"].firstMatch.exists)
-        XCTAssertTrue(app.staticTexts["Network"].exists)
+        if app.staticTexts["Connected, not active"].exists {
+            XCTAssertTrue(app.staticTexts["Network"].exists)
+        }
         let transmitRate = app.staticTexts["Transmit rate"]
         let channel = app.staticTexts["Channel"]
         XCTAssertTrue(transmitRate.exists)

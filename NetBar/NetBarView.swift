@@ -16,15 +16,16 @@ struct NetBarView: View {
                     ThroughputSection(monitor: monitor)
                     ConnectionSection(monitor: monitor)
                     VPNSection(monitor: monitor, launchError: $globalProtectLaunchError)
-                    WiFiSection(monitor: monitor)
+                    WiFiSection(monitor: monitor, locationPermission: locationPermission)
                 }
                 .padding(.horizontal, 16)
                 .padding(.vertical, 12)
             }
+            .scrollBounceBehavior(.basedOnSize)
             Divider()
             footer
         }
-        .frame(width: 360, height: 620)
+        .frame(width: 360, height: 656)
         .background(.regularMaterial)
     }
 
@@ -42,6 +43,9 @@ struct NetBarView: View {
                 Spacer()
 
                 Menu {
+                    Button("Settings…") {
+                        showAppSettings()
+                    }
                     Button("Open Network Settings…") {
                         openNetworkSettings()
                     }
@@ -60,33 +64,41 @@ struct NetBarView: View {
                         NSApplication.shared.terminate(nil)
                     }
                 } label: {
-                    Image(systemName: "ellipsis.circle")
+                    Image(systemName: "ellipsis")
+                        .frame(width: 16, height: 16)
                 }
                 .menuStyle(.borderlessButton)
-                .frame(width: 24, height: 24)
+                .menuIndicator(.hidden)
                 .help("More options")
                 .accessibilityLabel("More options")
             }
 
             if let errorMessage = launchAtLogin.errorMessage {
                 Label(errorMessage, systemImage: "exclamationmark.triangle.fill")
+                    .font(.caption)
                     .foregroundStyle(.red)
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("LaunchAtLoginError")
             } else if launchAtLogin.requiresApproval {
                 HStack(spacing: 4) {
                     Text("Login item approval required.")
-                    Button("Open Settings…") {
+                    Button("Open Login Item Settings…") {
                         launchAtLogin.openSettings()
                     }
                     .buttonStyle(.link)
                 }
+                .font(.caption)
             }
 
         }
-        .font(.caption)
+        .font(.callout)
         .padding(.horizontal, 16)
-        .padding(.vertical, 12)
+        .padding(.vertical, 10)
+    }
+
+    private func showAppSettings() {
+        NSApp.activate()
+        NSApp.sendAction(Selector(("showSettingsWindow:")), to: nil, from: nil)
     }
 
     private func openNetworkSettings() {
@@ -99,9 +111,9 @@ private struct StatusHeader: View {
     let monitor: NetworkMonitor
 
     var body: some View {
-        HStack(spacing: 11) {
-            HStack(spacing: 11) {
-                StatusBadge(state: monitor.reading.state, transport: monitor.reading.transport)
+        HStack(alignment: .top, spacing: 10) {
+            HStack(alignment: .top, spacing: 8) {
+                StatusDot(state: monitor.reading.state)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(monitor.reading.friendlyTitle)
@@ -158,7 +170,7 @@ private struct ConnectionSection: View {
     let monitor: NetworkMonitor
 
     var body: some View {
-        InfoSection(title: "Connection", symbol: monitor.reading.transport.symbolName) {
+        InfoSection(title: "Connection") {
             InfoRow(label: "Router", value: monitor.reading.routerAddress ?? "Unavailable")
             InfoRow(label: "Local address", value: monitor.reading.localAddress ?? "Unavailable")
             if let ethernet = monitor.reading.inactiveEthernetConnection {
@@ -173,22 +185,19 @@ private struct VPNSection: View {
     @Binding var launchError: String?
 
     var body: some View {
-        InfoSection(title: "GlobalProtect", symbol: "lock.shield") {
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Text("VPN")
-                    .foregroundStyle(.secondary)
-                Spacer(minLength: 12)
-                Text(monitor.reading.globalProtectConnected ? "Connected" : "Disconnected")
-                    .foregroundStyle(monitor.reading.globalProtectConnected ? .green : .secondary)
-                Button("Open GlobalProtect…") {
-                    openGlobalProtect()
-                }
-                .buttonStyle(.bordered)
-                .controlSize(.small)
-                .help("Open GlobalProtect with your saved portal ready")
-                .accessibilityIdentifier("GlobalProtectConnectionButton")
+        InfoSection(title: "GlobalProtect") {
+            InfoRow(
+                label: "VPN",
+                value: monitor.reading.globalProtectConnected ? "Connected" : "Disconnected",
+                valueColor: monitor.reading.globalProtectConnected ? .green : .secondary
+            )
+            Button("Open GlobalProtect…") {
+                openGlobalProtect()
             }
-            .font(.callout)
+            .buttonStyle(.bordered)
+            .controlSize(.small)
+            .help("Open GlobalProtect with your saved portal ready")
+            .accessibilityIdentifier("GlobalProtectConnectionButton")
 
             if let launchError {
                 Label(launchError, systemImage: "exclamationmark.triangle.fill")
@@ -226,94 +235,102 @@ private struct VPNSection: View {
 
 private struct WiFiSection: View {
     let monitor: NetworkMonitor
+    let locationPermission: LocationPermissionController
 
     var body: some View {
-        InfoSection(title: "Wi-Fi", symbol: "wifi") {
-            if !monitor.reading.wifi.isPowered {
+        let wifi = monitor.reading.wifi
+        InfoSection(title: "Wi-Fi") {
+            if !wifi.isPowered {
                 InfoRow(label: "Radio", value: "Off")
-            } else if !monitor.reading.wifi.isAssociated {
+            } else if !wifi.isAssociated {
                 InfoRow(label: "Network", value: "Not connected", valueColor: .secondary)
             } else {
-                InfoRow(label: "Network", value: monitor.reading.wifi.ssid ?? "Unavailable")
-                if monitor.reading.transport != .wifi {
-                    InfoRow(label: "Usage", value: "Connected, not active", valueColor: .secondary)
-                }
-                if let rssi = monitor.reading.wifi.rssi {
-                    InfoRow(label: "Signal", value: "\(rssi) dBm · \(monitor.reading.wifi.quality ?? "Unknown")")
-                }
-                if let noise = monitor.reading.wifi.noise, let snr = monitor.reading.wifi.snr {
-                    InfoRow(label: "Noise / SNR", value: "\(noise) dBm / \(snr) dB")
-                }
-                if let transmitRate = monitor.reading.wifi.transmitRate {
-                    InfoRow(label: "Transmit rate", value: String(format: "%.0f Mbps", transmitRate))
-                }
-                if let channel = monitor.reading.wifi.channelDescription {
-                    InfoRow(label: "Channel", value: channel)
-                }
+                WiFiAssociatedDetails(
+                    wifi: wifi,
+                    transport: monitor.reading.transport,
+                    locationPermission: locationPermission
+                )
             }
         }
     }
 }
 
-private struct StatusBadge: View {
-    let state: InternetState
+private struct WiFiAssociatedDetails: View {
+    let wifi: WiFiReading
     let transport: TransportKind
+    let locationPermission: LocationPermissionController
 
     var body: some View {
-        ZStack {
-            Circle()
-                .fill(state.swiftUIColor)
-                .overlay {
-                    Circle()
-                        .stroke(.quaternary, lineWidth: 0.75)
-                }
-            if transport != .none {
-                Image(systemName: transport.statusSymbolName)
-                    .font(.system(size: 9.25, weight: .bold))
-                    .foregroundStyle(state.statusGlyphColor)
-                    .offset(y: 0.25)
-            }
+        if transport != .wifi || wifi.ssid == nil {
+            InfoRow(
+                label: "Network",
+                value: wifi.networkName(permissionDenied: locationPermission.isDenied),
+                valueColor: wifi.ssid == nil ? .secondary : .primary
+            )
         }
-        .frame(width: 18, height: 18)
-        .accessibilityHidden(true)
+        if transport != .wifi {
+            InfoRow(label: "Usage", value: "Connected, not active", valueColor: .secondary)
+        }
+        if locationPermission.isDenied, wifi.ssid == nil {
+            Button("Open Location Services…") {
+                locationPermission.openSettings()
+            }
+            .buttonStyle(.link)
+            .font(.caption)
+        }
+        if let rssi = wifi.rssi {
+            InfoRow(label: "Signal", value: "\(rssi) dBm · \(wifi.quality ?? "Unknown")")
+        }
+        if let noise = wifi.noise, let snr = wifi.snr {
+            InfoRow(label: "Noise / SNR", value: "\(noise) dBm / \(snr) dB")
+        }
+        if let transmitRate = wifi.transmitRate {
+            InfoRow(label: "Transmit rate", value: String(format: "%.0f Mbps", transmitRate))
+        }
+        if let channel = wifi.channelDescription {
+            InfoRow(label: "Channel", value: channel)
+        }
     }
 }
 
-private extension InternetState {
-    var statusGlyphColor: Color {
-        switch self {
-        case .online, .checking, .degraded:
-            Color(white: 0.06)
-        case .offline:
-            .white
-        }
+private struct StatusDot: View {
+    let state: InternetState
+
+    var body: some View {
+        Circle()
+            .fill(state.swiftUIColor)
+            .overlay {
+                Circle()
+                    .strokeBorder(.primary.opacity(0.16), lineWidth: 0.5)
+            }
+            .frame(width: 9, height: 9)
+            .padding(.top, 4)
+            .accessibilityHidden(true)
     }
 }
 
 private struct EthernetNotActiveNotice: View {
     let connection: EthernetConnection
 
-    var body: some View {
-        HStack(spacing: 10) {
-            Image(systemName: "cable.connector.horizontal")
-                .font(.system(size: 12, weight: .semibold))
-                .foregroundStyle(.orange)
-                .frame(width: 22, height: 22)
-                .background(.orange.opacity(0.12), in: Circle())
-            VStack(alignment: .leading, spacing: 1) {
-                Text("Ethernet connected, not in use")
-                    .font(.caption.weight(.semibold))
-                Text(connection.linkSpeedBitsPerSecond.map {
-                    "\(LinkSpeedFormatter.string($0)) link detected"
-                } ?? "Wired link detected")
-                    .font(.caption2)
-                    .foregroundStyle(.secondary)
-            }
-            Spacer(minLength: 0)
+    private var detail: String {
+        if let speed = connection.linkSpeedBitsPerSecond {
+            return "Linked, not in use · \(LinkSpeedFormatter.string(speed))"
         }
-        .padding(10)
-        .background(.orange.opacity(0.08), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        return "Linked, not in use"
+    }
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text("Ethernet")
+                .foregroundStyle(.secondary)
+            Spacer(minLength: 16)
+            Text(detail)
+                .foregroundStyle(.orange)
+                .multilineTextAlignment(.trailing)
+        }
+        .font(.callout)
         .accessibilityElement(children: .combine)
+        .accessibilityLabel("Ethernet, \(detail)")
     }
 }
 
@@ -351,20 +368,13 @@ private struct ThroughputCard: View {
                 history: uploadHistory,
                 color: .purple
             )
-            HStack {
-                Text("Last 60 seconds")
-                Spacer()
-                Text("1 second samples")
-            }
-            .font(.caption2)
-            .foregroundStyle(.tertiary)
+            Text("Last 60 seconds")
+                .font(.caption2)
+                .foregroundStyle(.tertiary)
+                .frame(maxWidth: .infinity, alignment: .leading)
         }
         .padding(10)
-        .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 12, style: .continuous)
-                .strokeBorder(Color.primary.opacity(0.07), lineWidth: 0.5)
-        }
+        .background(Color.primary.opacity(0.04), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         .animation(nil, value: downloadHistory)
         .animation(nil, value: uploadHistory)
     }
@@ -400,7 +410,7 @@ private struct CompactTrafficLane: View {
     init(title: String, symbol: String, history: [Double], color: Color) {
         self.title = title
         self.symbol = symbol
-        values = Array(history.suffix(ThroughputGraphMetrics.sampleCapacity))
+        values = history
         self.color = color
     }
 
@@ -453,17 +463,13 @@ private struct TrafficGraph: View {
                         path.addLine(to: CGPoint(x: last.x, y: geometry.size.height))
                         path.closeSubpath()
                     }
-                    .fill(LinearGradient(
-                        colors: [color.opacity(0.22), color.opacity(0.02)],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    ))
+                    .fill(color.opacity(0.14))
 
                     Path { path in
                         path.move(to: first)
                         for point in points.dropFirst() { path.addLine(to: point) }
                     }
-                    .stroke(color, style: StrokeStyle(lineWidth: 1.75, lineCap: .round, lineJoin: .round))
+                    .stroke(color, style: StrokeStyle(lineWidth: 1.25, lineCap: .round, lineJoin: .round))
 
                     Circle()
                         .fill(color)
@@ -478,15 +484,14 @@ private struct TrafficGraph: View {
 
 private struct InfoSection<Content: View>: View {
     let title: String
-    let symbol: String
     @ViewBuilder let content: Content
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Label(title, systemImage: symbol)
+            Text(title)
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
-            VStack(spacing: 6) { content }
+            VStack(alignment: .leading, spacing: 6) { content }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -517,17 +522,6 @@ private extension InternetState {
         case .online: .green
         case .checking, .degraded: .yellow
         case .offline: .red
-        }
-    }
-}
-
-private extension TransportKind {
-    var statusSymbolName: String {
-        switch self {
-        case .wifi: "wifi"
-        case .ethernet: "cable.connector.horizontal"
-        case .other: "network"
-        case .none: "circle.fill"
         }
     }
 }

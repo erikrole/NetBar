@@ -95,6 +95,15 @@ final class NetBarTests: XCTestCase {
         XCTAssertEqual(ByteRateFormatter.string(2_500_000, compact: true), "2.5M")
     }
 
+    func testWiFiNetworkNameDistinguishesHiddenPermissionFromMissingData() {
+        let unnamed = WiFiReading(isPowered: true, isAssociated: true)
+        XCTAssertEqual(unnamed.networkName(permissionDenied: true), "Name hidden")
+        XCTAssertEqual(unnamed.networkName(permissionDenied: false), "Unavailable")
+
+        let named = WiFiReading(ssid: " Role ", isPowered: true, isAssociated: true)
+        XCTAssertEqual(named.networkName(permissionDenied: true), "Role")
+    }
+
     func testWiFiQualityAndSNR() {
         let reading = WiFiReading(rssi: -61, noise: -92, isPowered: true, isAssociated: true)
         XCTAssertEqual(reading.quality, "Good")

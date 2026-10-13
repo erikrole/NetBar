@@ -24,6 +24,19 @@ final class LocationPermissionController: NSObject, @preconcurrency CLLocationMa
         authorizationStatus == .denied || authorizationStatus == .restricted
     }
 
+    var wifiNameAccessDescription: String {
+        if authorizationStatus == .authorizedAlways || authorizationStatus == .authorizedWhenInUse {
+            return "Allowed"
+        }
+        if isDenied {
+            return "Off"
+        }
+        if canRequest {
+            return "Not requested"
+        }
+        return "Unavailable"
+    }
+
     func request() {
         manager.requestWhenInUseAuthorization()
     }

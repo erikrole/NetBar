@@ -60,15 +60,6 @@ enum TransportKind: String, Sendable {
     case ethernet = "Ethernet"
     case other = "Network"
     case none = "No route"
-
-    var symbolName: String {
-        switch self {
-        case .wifi: "wifi"
-        case .ethernet: "cable.connector.horizontal"
-        case .other: "network"
-        case .none: "network.slash"
-        }
-    }
 }
 
 struct WiFiReading: Equatable, Sendable {
@@ -105,6 +96,13 @@ struct WiFiReading: Equatable, Sendable {
         default: nil
         }
         return ["Channel \(channelNumber)", band].compactMap(\ .self).joined(separator: " · ")
+    }
+
+    func networkName(permissionDenied: Bool) -> String {
+        if let ssid = ssid?.trimmingCharacters(in: .whitespacesAndNewlines), !ssid.isEmpty {
+            return ssid
+        }
+        return permissionDenied ? "Name hidden" : "Unavailable"
     }
 }
 

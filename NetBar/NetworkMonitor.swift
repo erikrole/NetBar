@@ -22,6 +22,7 @@ final class NetworkMonitor {
     private var probeResult: ProbeResult = .pending
     private var previousCounters: InterfaceCounters?
     private var previousSampleDate: Date?
+    @ObservationIgnored private var sampledThroughput = ThroughputSnapshot()
     private var throughputSession = ThroughputSessionTracker()
     private var cachedTunnelNames: [String] = []
     private var cachedGlobalProtectRunning = false
@@ -65,6 +66,7 @@ final class NetworkMonitor {
         isInteractive = true
         refreshMetadata()
         runProbeIfNeeded()
+        publishThroughputIfVisible()
 
         let timer = Timer(
             timeInterval: MonitoringCadence.interactiveMetadataInterval,
@@ -223,7 +225,14 @@ final class NetworkMonitor {
         let interfaceName = reading.interfaceName
         previousCounters = interfaceName.flatMap(reader.counters)
         previousSampleDate = previousCounters == nil ? nil : Date()
-        throughput = ThroughputSnapshot()
+        sampledThroughput = ThroughputSnapshot()
+        publishThroughputIfVisible()
+    }
+
+    /// Idle samples stay off the observed snapshot so a closed popover is not redrawn every second.
+    private func publishThroughputIfVisible() {
+        guard isInteractive, throughput != sampledThroughput else { return }
+        throughput = sampledThroughput
     }
 
     private func sampleThroughput() {
@@ -255,10 +264,17 @@ final class NetworkMonitor {
         case let .record(download, upload):
             self.previousCounters = counters
             self.previousSampleDate = now
-            throughput.downloadBytesPerSecond = download
-            throughput.uploadBytesPerSecond = upload
-            throughput.downloadHistory = ThroughputHistory.appending(download, to: throughput.downloadHistory)
-            throughput.uploadHistory = ThroughputHistory.appending(upload, to: throughput.uploadHistory)
+            sampledThroughput.downloadBytesPerSecond = download
+            sampledThroughput.uploadBytesPerSecond = upload
+            sampledThroughput.downloadHistory = ThroughputHistory.appending(
+                download,
+                to: sampledThroughput.downloadHistory
+            )
+            sampledThroughput.uploadHistory = ThroughputHistory.appending(
+                upload,
+                to: sampledThroughput.uploadHistory
+            )
+            publishThroughputIfVisible()
         }
     }
 
